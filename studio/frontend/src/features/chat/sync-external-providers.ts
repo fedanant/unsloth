@@ -56,6 +56,9 @@ export function resolveUiProviderTypeFromConfig(
   if (existingProviderType && isCustomProviderType(existingProviderType)) {
     return existingProviderType;
   }
+  if (configProviderType === "custom_anthropic") {
+    return "custom_anthropic";
+  }
   if (configProviderType !== CUSTOM_BACKEND_PROVIDER_TYPE) {
     return configProviderType;
   }
@@ -88,7 +91,7 @@ export function pruneProviderModelIds(
   providerType: string,
   modelIds: string[],
 ): string[] {
-  if (providerType === "anthropic") {
+  if (providerType === "anthropic" || providerType === "custom_anthropic") {
     return modelIds.filter((id) => !ANTHROPIC_DATED_SNAPSHOT_SUFFIX.test(id));
   }
   if (providerType === "openai") {

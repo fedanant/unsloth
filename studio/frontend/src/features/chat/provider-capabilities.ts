@@ -276,6 +276,7 @@ export function providerSupportsBuiltinWebSearch(
   return (
     providerType === "openai" ||
     providerType === "anthropic" ||
+    providerType === "custom_anthropic" ||
     providerType === "openrouter" ||
     providerType === "kimi"
   );
@@ -290,7 +291,7 @@ export function providerSupportsBuiltinWebSearch(
 export function providerSupportsBuiltinWebFetch(
   providerType: string | null | undefined,
 ): boolean {
-  return providerType === "anthropic";
+  return providerType === "anthropic" || providerType === "custom_anthropic";
 }
 
 /**
@@ -310,7 +311,7 @@ export function providerSupportsFastMode(
   providerType: string | null | undefined,
   modelId: string | null | undefined,
 ): boolean {
-  if (providerType !== "anthropic") return false;
+  if (providerType !== "anthropic" && providerType !== "custom_anthropic") return false;
   if (!modelId) return false;
   // Family boundary ("" or "-") required so IDs like "claude-opus-4-70" or
   // "claude-opus-4-7b" do not match.
@@ -395,7 +396,7 @@ export function providerSupportsBuiltinCodeExecution(
 ): boolean {
   const normalized = modelId?.trim().toLowerCase() ?? "";
   if (!normalized) return false;
-  if (providerType === "anthropic") {
+  if (providerType === "anthropic" || providerType === "custom_anthropic") {
     return ANTHROPIC_CODE_EXECUTION_MODEL_PREFIXES.some((prefix) =>
       normalized.startsWith(prefix),
     );
@@ -607,6 +608,14 @@ const PROVIDER_CAPABILITIES: Record<string, ProviderCapabilities> = {
   // Presence/frequency penalty is not part of the Messages API on any
   // Claude generation.
   anthropic: {
+    temperature: true,
+    topP: true,
+    topK: true,
+    minP: false,
+    repetitionPenalty: false,
+    presencePenalty: false,
+  },
+  custom_anthropic: {
     temperature: true,
     topP: true,
     topK: true,
@@ -1042,7 +1051,9 @@ export function getExternalReasoningCapabilities(
 
   const isOpenAIProvider =
     normalizedProvider === "openai" || normalizedProvider === "openai_codex";
-  const isAnthropicProvider = normalizedProvider === "anthropic";
+  const isAnthropicProvider =
+    normalizedProvider === "anthropic" ||
+    normalizedProvider === "custom_anthropic";
   const isKimiProvider = normalizedProvider === "kimi";
   const isMistralProvider = normalizedProvider === "mistral";
   const isOpenRouterProvider = normalizedProvider === "openrouter";

@@ -59,7 +59,11 @@ export interface ExternalProviderConfig {
 // enable_prompt_caching boolean alone isn't enough. Until that two-step flow
 // ships, keep the picker off so the toggle doesn't silently no-op for Gemini.
 // See https://ai.google.dev/gemini-api/docs/caching.
-const PROMPT_CACHING_PROVIDER_TYPES = new Set(["openai", "anthropic"]);
+const PROMPT_CACHING_PROVIDER_TYPES = new Set([
+  "openai",
+  "anthropic",
+  "custom_anthropic",
+]);
 
 export function supportsProviderPromptCaching(
   providerType: string | null | undefined,
@@ -72,7 +76,10 @@ export function supportsProviderPromptCaching(
  * pool. Anthropic exposes 5m and 1h ephemeral pools via `cache_control.ttl`;
  * OpenAI's automatic cache has no equivalent knob, so it stays off the picker.
  */
-const PROMPT_CACHE_TTL_PROVIDER_TYPES = new Set(["anthropic"]);
+const PROMPT_CACHE_TTL_PROVIDER_TYPES = new Set([
+  "anthropic",
+  "custom_anthropic",
+]);
 
 export function supportsProviderPromptCacheTtl(
   providerType: string | null | undefined,
@@ -110,6 +117,7 @@ const NON_VISION_PROVIDER_TYPES = new Set<string>([
 const VISION_CAPABLE_PROVIDER_TYPES = new Set<string>([
   "openai",
   "anthropic",
+  "custom_anthropic",
   "gemini",
   "openrouter",
 ]);
@@ -261,7 +269,9 @@ export function externalModelSupportsStudioTools(
 
 export const CUSTOM_BACKEND_PROVIDER_TYPE = "openai";
 export const LEGACY_CUSTOM_PROVIDER_TYPE = "custom";
+export const CUSTOM_ANTHROPIC_PROVIDER_TYPE = "custom_anthropic";
 export const CUSTOM_PROVIDER_DISPLAY_NAME = "Custom";
+export const CUSTOM_ANTHROPIC_PROVIDER_DISPLAY_NAME = "Custom Anthropic";
 const OPENAI_CODEX_PROVIDER_TYPE = "openai_codex";
 export const PROVIDER_MAX_OUTPUT_TOKENS_MIN = 64;
 
@@ -320,6 +330,7 @@ export const CUSTOM_PROVIDER_PRESETS = [
 
 const CUSTOM_PROVIDER_LABELS: Record<string, string> = {
   [LEGACY_CUSTOM_PROVIDER_TYPE]: CUSTOM_PROVIDER_DISPLAY_NAME,
+  [CUSTOM_ANTHROPIC_PROVIDER_TYPE]: CUSTOM_ANTHROPIC_PROVIDER_DISPLAY_NAME,
   ...Object.fromEntries(
     CUSTOM_PROVIDER_PRESETS.map((preset) => [
       preset.providerType,
@@ -330,6 +341,7 @@ const CUSTOM_PROVIDER_LABELS: Record<string, string> = {
 
 const CUSTOM_PROVIDER_BASE_URL_PLACEHOLDERS: Record<string, string> = {
   [LEGACY_CUSTOM_PROVIDER_TYPE]: "https://my-vllm-server.com/v1",
+  [CUSTOM_ANTHROPIC_PROVIDER_TYPE]: "https://api.anthropic.com/v1",
   ...Object.fromEntries(
     CUSTOM_PROVIDER_PRESETS.map((preset) => [
       preset.providerType,
@@ -340,6 +352,7 @@ const CUSTOM_PROVIDER_BASE_URL_PLACEHOLDERS: Record<string, string> = {
 
 const CUSTOM_PROVIDER_MODEL_IDS_PLACEHOLDERS: Record<string, string> = {
   [LEGACY_CUSTOM_PROVIDER_TYPE]: "openai/gpt-oss-20b\nQwen/Qwen3-14B",
+  [CUSTOM_ANTHROPIC_PROVIDER_TYPE]: "claude-sonnet-4-5\nclaude-opus-4-5",
   ...Object.fromEntries(
     CUSTOM_PROVIDER_PRESETS.map((preset) => [
       preset.providerType,
@@ -358,6 +371,7 @@ export function isCustomProviderType(
 /** OpenAI-compat custom types that may expose GET /v1/models. */
 const REMOTE_MODEL_CATALOG_CUSTOM_PROVIDER_TYPES = new Set([
   LEGACY_CUSTOM_PROVIDER_TYPE,
+  CUSTOM_ANTHROPIC_PROVIDER_TYPE,
   "ollama",
   "vllm",
   "llama_cpp",
@@ -441,6 +455,9 @@ export function toExternalBackendProviderType(
   // chat-completions backend path instead of OpenAI's Responses API route.
   if (providerType === LEGACY_CUSTOM_PROVIDER_TYPE) {
     return LEGACY_CUSTOM_PROVIDER_TYPE;
+  }
+  if (providerType === CUSTOM_ANTHROPIC_PROVIDER_TYPE) {
+    return CUSTOM_ANTHROPIC_PROVIDER_TYPE;
   }
   return isCustomProviderType(providerType)
     ? CUSTOM_BACKEND_PROVIDER_TYPE

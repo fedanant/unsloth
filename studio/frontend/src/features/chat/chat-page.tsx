@@ -2212,7 +2212,8 @@ export function ChatPage({
     const baseCapabilities = getProviderCapabilities(provider?.providerType);
     if (!baseCapabilities) return baseCapabilities;
     const anthropicThinkingEnabled =
-      provider?.providerType === "anthropic" &&
+      (provider?.providerType === "anthropic" ||
+        provider?.providerType === "custom_anthropic") &&
       reasoningStyle === "reasoning_effort" &&
       (supportsReasoningOff ? reasoningEnabled : true) &&
       reasoningEffort !== "none";
@@ -2256,7 +2257,9 @@ export function ChatPage({
     // strongest answers, still skips thinking when trivial). OpenAI gets
     // "high" (gpt-5.x accept it across the board; good cost/quality for
     // Responses-API tools). Everyone else "medium". Overridable via Think.
-    const isAnthropic = provider?.providerType === "anthropic";
+    const isAnthropic =
+      provider?.providerType === "anthropic" ||
+      provider?.providerType === "custom_anthropic";
     const isOpenAI = provider?.providerType === "openai";
     const anthropicTopEffort = effortLevels.includes("xhigh")
       ? "xhigh"
@@ -2307,8 +2310,7 @@ export function ChatPage({
     // reliable, so we don't pre-enable them.
     const searchOnByDefault =
       supportsBuiltinWebSearch &&
-      (provider?.providerType === "anthropic" ||
-        provider?.providerType === "openai");
+      (isAnthropic || provider?.providerType === "openai");
     // the open chat's own pills win, or selecting a model would revert them to the global ones.
     const storedToolsEnabled =
       threadScopedOverride("toolsEnabled") ??
@@ -2794,7 +2796,9 @@ export function ChatPage({
         );
         // Same per-provider default policy as the useEffect above:
         // Anthropic highest level, OpenAI "high", everyone else "medium".
-        const isAnthropic = selectedProvider?.providerType === "anthropic";
+        const isAnthropic =
+          selectedProvider?.providerType === "anthropic" ||
+          selectedProvider?.providerType === "custom_anthropic";
         const isOpenAI = selectedProvider?.providerType === "openai";
         const anthropicTopEffort = effortLevels.includes("xhigh")
           ? "xhigh"
@@ -2849,8 +2853,7 @@ export function ChatPage({
         // default (structured citations end-to-end); others stay off.
         const searchOnByDefault =
           supportsBuiltinWebSearch &&
-          (selectedProvider?.providerType === "anthropic" ||
-            selectedProvider?.providerType === "openai");
+          (isAnthropic || selectedProvider?.providerType === "openai");
         // mirror of the sibling effect: the open chat's own pills win over the global ones.
         const storedToolsEnabled =
           threadScopedOverride("toolsEnabled") ??

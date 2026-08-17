@@ -6595,7 +6595,7 @@ def _error_sse_line(status_code: int, message: str, provider_type: str) -> str:
 
 
 def _build_usage_chunk(
-    completion_id: str, provider: Literal["anthropic", "openai"], last_usage: Optional[dict]
+    completion_id: str, provider: str, last_usage: Optional[dict]
 ) -> Optional[str]:
     """Build an OpenAI ``include_usage``-style SSE chunk carrying upstream
     prompt-cache accounting back to the client.
@@ -6617,7 +6617,7 @@ def _build_usage_chunk(
 
     completion_tokens = last_usage.get("output_tokens") or 0
 
-    if provider == "anthropic":
+    if provider in ("anthropic", "custom_anthropic"):
         uncached_input = last_usage.get("input_tokens") or 0
         cache_creation = last_usage.get("cache_creation_input_tokens") or 0
         cache_read = last_usage.get("cache_read_input_tokens") or 0

@@ -11908,7 +11908,7 @@ def _extract_content_parts(messages: list) -> tuple[str, list[dict], "Optional[s
 # the generic /chat/completions passthrough that forwards messages verbatim,
 # so handing them an `input_document` part would 400 with an unknown
 # content_part type.
-_INPUT_DOCUMENT_PROVIDERS = frozenset({"anthropic", "openai"})
+_INPUT_DOCUMENT_PROVIDERS = frozenset({"anthropic", "custom_anthropic", "openai"})
 
 
 def _build_external_messages(
@@ -11934,12 +11934,12 @@ def _build_external_messages(
       ONLY when provider_type=="openai" so follow-up image edits can reference
       prior generated images.
     - `compaction`: Anthropic-only synthetic part (round-trips server-side
-      compaction state). Forwarded ONLY when provider_type=="anthropic";
+      compaction state). Forwarded ONLY when provider_type=="anthropic" or "custom_anthropic";
       stripped elsewhere so the unknown part doesn't reach generic
       /chat/completions and 400 (DeepSeek, Mistral, Gemini, Kimi, OpenRouter).
     """
     document_provider = provider_type in _INPUT_DOCUMENT_PROVIDERS
-    anthropic = provider_type == "anthropic"
+    anthropic = provider_type in ("anthropic", "custom_anthropic")
     openai = provider_type == "openai"
     # `extra_content` carries the assistant's text-part `thoughtSignature`
     # round-trip on Gemini's native streamGenerateContent endpoint. Custom

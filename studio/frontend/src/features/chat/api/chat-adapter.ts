@@ -4374,6 +4374,7 @@ export function createOpenAIStreamAdapter(
       const disabledToolGuardProviderType = externalProvider?.providerType;
       if (
         disabledToolGuardProviderType === "anthropic" ||
+        disabledToolGuardProviderType === "custom_anthropic" ||
         disabledToolGuardProviderType === "openai"
       ) {
         const webLabel = providerShipsWebFetch
@@ -5621,7 +5622,8 @@ export function createOpenAIStreamAdapter(
                     | undefined;
                   if (newContainerId && resolvedThreadId) {
                     const field =
-                      externalProvider?.providerType === "anthropic"
+                      externalProvider?.providerType === "anthropic" ||
+                      externalProvider?.providerType === "custom_anthropic"
                         ? "anthropicCodeExecContainerId"
                         : "openaiCodeExecContainerId";
                     void updateStoredChatThreadEventually(resolvedThreadId, {
@@ -5654,7 +5656,8 @@ export function createOpenAIStreamAdapter(
                 if (toolEvent.type === "container_invalidated") {
                   if (resolvedThreadId) {
                     const field =
-                      externalProvider?.providerType === "anthropic"
+                      externalProvider?.providerType === "anthropic" ||
+                      externalProvider?.providerType === "custom_anthropic"
                         ? "anthropicCodeExecContainerId"
                         : "openaiCodeExecContainerId";
                     void updateStoredChatThreadEventually(resolvedThreadId, {

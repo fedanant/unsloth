@@ -9,6 +9,7 @@ const STUBS = new Map([
   ["@/features/hub", "./helpers/store-stubs/hub.ts"],
   ["@/config/env", "./helpers/store-stubs/env.ts"],
   ["@/lib/toast", "./helpers/store-stubs/toast.ts"],
+  ["node-forge", "./helpers/store-stubs/node-forge.ts"],
 ]);
 
 export function resolve(specifier, context, next) {

@@ -332,6 +332,27 @@ PROVIDER_REGISTRY: dict[str, dict[str, Any]] = {
         # Surfaced by the frontend's generic Custom option, not the dropdown.
         "hidden": True,
     },
+    "custom_anthropic": {
+        "display_name": "Custom Anthropic",
+        # User-supplied via provider_base_url.
+        "base_url": "https://api.anthropic.com/v1",
+        "default_models": [],
+        "supports_streaming": True,
+        "supports_vision": True,
+        "supports_tool_calling": False,
+        "hosted_tools": ("web_search", "web_fetch", "code_execution"),
+        "auth_header": "x-api-key",
+        "auth_prefix": "",
+        "extra_headers": {
+            "anthropic-version": "2023-06-01",
+        },
+        "openai_compatible": False,
+        "notes": (
+            "User-supplied Anthropic-compatible server. Uses x-api-key header and "
+            "/v1/messages endpoint with SSE translation."
+        ),
+        "hidden": True,
+    },
     "ollama": {
         "display_name": "Ollama",
         "base_url": "http://localhost:11434/v1",

@@ -493,7 +493,7 @@ async def test_provider(
     )
 
     base_url = payload.base_url or info["base_url"]
-    if payload.provider_type == "custom":
+    if payload.provider_type in ("custom", "custom_anthropic"):
         if not base_url:
             return ProviderTestResult(
                 success = False,
@@ -537,6 +537,33 @@ async def test_provider(
                 message = "Connected successfully. Chat completions endpoint responded.",
                 models_count = None,
             )
+        if payload.provider_type == "custom_anthropic":
+            model_id = (payload.model_id or "").strip()
+            if model_id:
+                async for _ in client.stream_chat_completion(
+                    messages = [{"role": "user", "content": "ping"}],
+                    model = model_id,
+                    max_tokens = 1,
+                ):
+                    break
+                return ProviderTestResult(
+                    success = True,
+                    message = "Connected successfully. Anthropic messages endpoint responded.",
+                    models_count = None,
+                )
+            try:
+                models = await client.list_models()
+                return ProviderTestResult(
+                    success = True,
+                    message = f"Connected successfully. Found {len(models)} model(s).",
+                    models_count = len(models),
+                )
+            except Exception:
+                return ProviderTestResult(
+                    success = False,
+                    message = "Connection failed: add a model ID to test custom Anthropic providers.",
+                    models_count = None,
+                )
         if info.get("model_list_mode") == "curated":
             await client.verify_models_endpoint_lightweight()
             return ProviderTestResult(

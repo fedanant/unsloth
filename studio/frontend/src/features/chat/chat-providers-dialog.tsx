@@ -63,7 +63,9 @@ import {
   getExternalProviderApiKey,
   isCustomProviderType,
   LEGACY_CUSTOM_PROVIDER_TYPE,
+  CUSTOM_ANTHROPIC_PROVIDER_TYPE,
   CUSTOM_PROVIDER_DISPLAY_NAME,
+  CUSTOM_ANTHROPIC_PROVIDER_DISPLAY_NAME,
   providerModelSupportsStudioTools,
   removeExternalProviderApiKey,
   supportsProviderMaxOutputTokens,
@@ -194,6 +196,9 @@ export function ChatProvidersSettings({
     (s) => s.setConnectionsEnabled,
   );
   const isCustomProvider = isCustomProviderType(providerType);
+  const isGenericCustom =
+    providerType === LEGACY_CUSTOM_PROVIDER_TYPE ||
+    providerType === CUSTOM_ANTHROPIC_PROVIDER_TYPE;
   // a connection being created has no stored type yet, so only the UI type can decide
   const supportsMaxOutputTokens = supportsProviderMaxOutputTokens(
     providerType,
@@ -1065,7 +1070,8 @@ export function ChatProvidersSettings({
         apiKey: savedKey,
         baseUrl: provider.baseUrl || null,
         modelId:
-          provider.providerType === LEGACY_CUSTOM_PROVIDER_TYPE
+          provider.providerType === LEGACY_CUSTOM_PROVIDER_TYPE ||
+          provider.providerType === CUSTOM_ANTHROPIC_PROVIDER_TYPE
             ? (provider.models[0] ?? null)
             : null,
       });
@@ -1136,7 +1142,11 @@ export function ChatProvidersSettings({
                   </p>
                 </div>
                 <Select
-                  value={providerType}
+                  value={
+                    isGenericCustom
+                      ? LEGACY_CUSTOM_PROVIDER_TYPE
+                      : providerType
+                  }
                   onValueChange={(value) => {
                     if (editingProviderId) return;
                     setProviderType(value);
@@ -1210,6 +1220,68 @@ export function ChatProvidersSettings({
                   </SelectContent>
                 </Select>
               </div>
+
+              {isGenericCustom ? (
+                <div className="grid grid-cols-[minmax(140px,0.8fr)_minmax(0,1.2fr)] items-center gap-4 px-4 py-3 @max-[520px]:grid-cols-1">
+                  <div className="flex min-w-0 flex-col gap-0.5">
+                    <Label
+                      htmlFor="custom-provider-api-type"
+                      className="text-sm font-medium"
+                    >
+                      API type
+                    </Label>
+                    <p className="text-xs leading-snug text-muted-foreground">
+                      Protocol for requests and streaming.
+                    </p>
+                  </div>
+                  <Select
+                    value={
+                      providerType === CUSTOM_ANTHROPIC_PROVIDER_TYPE
+                        ? CUSTOM_ANTHROPIC_PROVIDER_TYPE
+                        : LEGACY_CUSTOM_PROVIDER_TYPE
+                    }
+                    onValueChange={(val) => {
+                      if (editingProviderId) return;
+                      setProviderType(val);
+                      setAvailableModels([]);
+                      setSelectedModelIds([]);
+                      setManualModelIds("");
+                      setModelSearchQuery("");
+                      setCustomProviderName(customProviderDisplayName(val));
+                    }}
+                  >
+                    <SelectTrigger
+                      id="custom-provider-api-type"
+                      className="h-9 w-full text-sm"
+                      disabled={editingProviderId != null}
+                    >
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value={LEGACY_CUSTOM_PROVIDER_TYPE}>
+                        <span className="flex items-center gap-2">
+                          <ApiProviderLogo
+                            providerType="openai"
+                            className="size-4"
+                            title="OpenAI"
+                          />
+                          OpenAI compatible
+                        </span>
+                      </SelectItem>
+                      <SelectItem value={CUSTOM_ANTHROPIC_PROVIDER_TYPE}>
+                        <span className="flex items-center gap-2">
+                          <ApiProviderLogo
+                            providerType="anthropic"
+                            className="size-4"
+                            title="Anthropic"
+                          />
+                          Anthropic (/v1/messages)
+                        </span>
+                      </SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              ) : null}
 
               {showApiKeyField ? (
                 <div className="grid grid-cols-[minmax(140px,0.8fr)_minmax(0,1.2fr)] items-center gap-4 px-4 py-3 @max-[520px]:grid-cols-1">
@@ -1311,7 +1383,9 @@ export function ChatProvidersSettings({
                       Base URL
                     </Label>
                     <p className="text-xs leading-snug text-muted-foreground">
-                      OpenAI-compatible endpoint.
+                      {providerType === CUSTOM_ANTHROPIC_PROVIDER_TYPE
+                        ? "Anthropic-compatible endpoint."
+                        : "OpenAI-compatible endpoint."}
                     </p>
                   </div>
                   <Input
