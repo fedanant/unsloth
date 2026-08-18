@@ -916,7 +916,9 @@ def validate_provider_base_url(base_url: str) -> str:
     if os.environ.get(_BLOCK_PRIVATE_ENV) == "1":
         _reject_non_public(hostname, port, scheme)
 
-    return raw.rstrip("/")
+    normalized = raw.rstrip("/")
+    normalized = re.sub(r"/(?:messages|chat/completions)/?$", "", normalized, flags = re.IGNORECASE)
+    return normalized
 
 
 def list_available_providers(include_hidden: bool = False) -> list[dict[str, Any]]:

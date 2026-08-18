@@ -34,6 +34,7 @@ import { useEffect } from "react";
 import type { ReactNode } from "react";
 import { SettingsRow } from "../components/settings-row";
 import { SettingsSection } from "../components/settings-section";
+import { WebSearchSettingsSection } from "../components/web-search-settings";
 
 // Adjustable "+" menu items shown in settings, in display order. Icons mirror
 // the ones used in the composer + menu itself.
@@ -396,6 +397,8 @@ export function ChatTab() {
           />
         </SettingsRow>
       </SettingsSection>
+
+      <WebSearchSettingsSection />
     </div>
   );
 }

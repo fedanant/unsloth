@@ -160,5 +160,11 @@ test("replayed arguments keep parsable text and fall back otherwise", () => {
     toolCallReplayArguments("", { query: "first" }),
     '{"query":"first"}',
   );
+  assert.equal(
+    toolCallReplayArguments(undefined, '{"query":"from_string"}'),
+    '{"query":"from_string"}',
+  );
   assert.equal(toolCallReplayArguments(undefined, undefined), "{}");
+  assert.equal(toolCallReplayArguments("", null), "{}");
 });
+

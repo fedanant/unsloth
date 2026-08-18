@@ -469,6 +469,8 @@ export function ChatProvidersSettings({
     if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
       throw new Error("Base URL must use http or https.");
     }
+    // Strip trailing endpoints if full completion/messages endpoints were pasted
+    parsed.pathname = parsed.pathname.replace(/\/(messages|chat\/completions)\/?$/i, "");
     if (options.appendOpenAiVersionPath) {
       const pathname = parsed.pathname.replace(/\/+$/, "");
       if (!pathname) {

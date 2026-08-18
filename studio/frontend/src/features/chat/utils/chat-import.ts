@@ -145,8 +145,12 @@ function oaiMessagesToRecords(
           const tcObj = tc as Record<string, unknown>;
           const fn = (tcObj.function as Record<string, unknown>) ?? {};
           const tcId = typeof tcObj.id === "string" ? tcObj.id : crypto.randomUUID();
-          const name = typeof fn.name === "string" ? fn.name : "unknown";
-          const argsStr = typeof fn.arguments === "string" ? fn.arguments : "{}";
+          const argsStr =
+            typeof fn.arguments === "string"
+              ? fn.arguments
+              : typeof fn.arguments === "object" && fn.arguments !== null
+                ? JSON.stringify(fn.arguments)
+                : "{}";
           let args: unknown = {};
           // _raw matches what the stream adapter and the backend keep for
           // arguments the model did not emit as valid JSON.

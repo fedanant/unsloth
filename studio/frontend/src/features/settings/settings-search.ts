@@ -100,6 +100,9 @@ export const SETTINGS_SEARCH_INDEX: Record<SettingsTab, TranslationKey[]> = {
     "settings.chat.artifacts.allowNetworkAccess",
     "settings.chat.modelDisclaimer",
     "settings.chat.projectsSection",
+    "settings.chat.webSearch.title",
+    "settings.chat.webSearch.engineLabel",
+    "settings.chat.webSearch.testLabel",
   ],
   // Chat data management moved to the Data tab; keep these rows findable there.
   data: [
@@ -214,4 +217,6 @@ export const SETTINGS_SEARCH_KEYWORDS: Partial<
     "settings.resources.modelMemory.modelMemoryKeywords",
   "settings.resources.modelMemory.noRamReserve":
     "settings.resources.modelMemory.modelMemoryKeywords",
+  "settings.chat.webSearch.title":
+    "settings.chat.webSearch.webSearchKeywords",
 };

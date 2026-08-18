@@ -1033,6 +1033,89 @@ export const en = {
         blockedBannerPlural: "Blocked {count} external resources from {hosts}.",
         blockedBannerAction: "Allow for this canvas",
       },
+      webSearch: {
+        title: "Web Search & Search Engines",
+        description:
+          "Configure search engines and web servers used by the Search tool in chat.",
+        webSearchKeywords:
+          "web search engine brave searxng tavily google bing duckduckgo web server api query",
+        engineLabel: "Search engine provider",
+        engineDescription:
+          "Select the search provider or server used for live web search.",
+        optionalSecret: "Optional API key or secret",
+        loadError: "Failed to load web search settings.",
+        saveSuccess: "Web search settings saved.",
+        saveError: "Failed to save web search settings.",
+        testLabel: "Test search",
+        testDescription:
+          "Test query against the configured engine or web server.",
+        testQueryPlaceholder: "Enter search query…",
+        runTest: "Test",
+        testSuccess: "Found {count} results successfully.",
+        testSuccessStatus: "Search successful ({count} results)",
+        testFailed: "Search test failed.",
+        testFailedStatus: "Search failed",
+        providers: {
+          duckduckgo: "DuckDuckGo",
+          duckduckgoDesc: "Free built-in web search without API keys.",
+          brave: "Brave Search",
+          braveDesc: "Brave Search API with high-quality independent web index.",
+          searxng: "SearXNG",
+          searxngDesc:
+            "Self-hosted or public privacy-friendly SearXNG web server instance.",
+          tavily: "Tavily",
+          tavilyDesc: "AI-optimized web search designed for LLM research.",
+          google: "Google Custom Search",
+          googleDesc: "Google Custom Search JSON API.",
+          bing: "Bing Search",
+          bingDesc: "Microsoft Azure Bing Web Search API.",
+          custom: "Custom Web Server",
+          customDesc: "Custom web search API endpoint or proxy server.",
+        },
+        brave: {
+          apiKeyLabel: "Brave API key",
+          apiKeyDescription: "Your Brave Search API subscription key.",
+          getKeyLink: "Get Brave API key",
+          endpointLabel: "Brave endpoint",
+          endpointDescription: "Brave search REST API endpoint URL.",
+        },
+        searxng: {
+          urlLabel: "SearXNG server URL",
+          urlDescription:
+            "Base URL of your SearXNG web server (e.g. http://localhost:8080).",
+          apiKeyLabel: "API key / Secret",
+          apiKeyDescription:
+            "Optional secret key for private SearXNG instances.",
+        },
+        tavily: {
+          apiKeyLabel: "Tavily API key",
+          apiKeyDescription: "Your Tavily Search API key.",
+          getKeyLink: "Get Tavily API key",
+        },
+        google: {
+          apiKeyLabel: "Google API key",
+          apiKeyDescription: "Google Cloud API key for Custom Search.",
+          cxLabel: "Search engine ID (cx)",
+          cxDescription:
+            "Search Engine ID from Google Programmable Search Engine.",
+        },
+        bing: {
+          apiKeyLabel: "Bing API key",
+          apiKeyDescription: "Azure Cognitive Services Bing Search API key.",
+          endpointLabel: "Bing endpoint",
+          endpointDescription: "Azure Bing Web Search endpoint URL.",
+        },
+        custom: {
+          urlLabel: "Server URL / Endpoint",
+          urlDescription: "Full URL of your search web server endpoint.",
+          apiKeyLabel: "API Key / Auth Header",
+          apiKeyDescription:
+            "Optional Authorization header bearer token or API key.",
+          queryParamLabel: "Query parameter",
+          queryParamDescription:
+            "URL parameter name carrying the search query (default: q).",
+        },
+      },
       data: "Data",
       exportHistory: "Export chat history",
       exportHistoryDescription: "Download all chats and messages as JSON.",

@@ -17,6 +17,7 @@ import {
   MessageResponseModelBadge,
 } from "@/components/assistant-ui/message-response-details-sheet";
 import { MessageTiming } from "@/components/assistant-ui/message-timing";
+import { TeeVerifyButton } from "@/components/assistant-ui/tee-verify-button";
 import { threadHasResearchMessage } from "@/components/assistant-ui/thread-research-presence";
 import { Reasoning, ReasoningGroup } from "@/components/assistant-ui/reasoning";
 import { RagSourcesGroup } from "@/components/assistant-ui/rag-sources";
@@ -6939,6 +6940,7 @@ const AssistantActionBar: FC = () => {
         className="aui-assistant-action-bar-root col-start-3 row-start-2 flex items-center gap-1 text-chat-icon-fg [&_button:not([data-slot=message-timing-trigger])]:size-8 [&_button]:!rounded-full [&_button:hover]:bg-chat-icon-bg-hover [&_button:hover]:text-chat-icon-fg-hover"
       >
         <CopyButton />
+        <TeeVerifyButton />
         <EditAssistantMessageButton />
         {!researchRunId && !researchActive && (
           <ActionBarPrimitive.Reload asChild={true}>

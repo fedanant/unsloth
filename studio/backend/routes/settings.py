@@ -2292,3 +2292,108 @@ def get_debug_log(
         file_logging_disabled = debug_log_sources.source_is_frozen(source_id),
         size_bytes = result.size_bytes,
     )
+
+
+class WebSearchSettingsPayload(BaseModel):
+    provider: Optional[str] = None
+    brave_api_key: Optional[str] = None
+    brave_endpoint: Optional[str] = None
+    searxng_url: Optional[str] = None
+    searxng_api_key: Optional[str] = None
+    tavily_api_key: Optional[str] = None
+    google_api_key: Optional[str] = None
+    google_cx: Optional[str] = None
+    bing_api_key: Optional[str] = None
+    bing_endpoint: Optional[str] = None
+    custom_url: Optional[str] = None
+    custom_api_key: Optional[str] = None
+    custom_query_param: Optional[str] = None
+    max_results: Optional[int] = None
+
+
+class WebSearchSettingsResponse(BaseModel):
+    provider: str
+    brave_api_key: str = ""
+    brave_api_key_masked: str = ""
+    has_brave_api_key: bool = False
+    brave_endpoint: str = ""
+    searxng_url: str = ""
+    searxng_api_key: str = ""
+    searxng_api_key_masked: str = ""
+    has_searxng_api_key: bool = False
+    tavily_api_key: str = ""
+    tavily_api_key_masked: str = ""
+    has_tavily_api_key: bool = False
+    google_api_key: str = ""
+    google_api_key_masked: str = ""
+    has_google_api_key: bool = False
+    google_cx: str = ""
+    bing_api_key: str = ""
+    bing_api_key_masked: str = ""
+    has_bing_api_key: bool = False
+    bing_endpoint: str = ""
+    custom_url: str = ""
+    custom_api_key: str = ""
+    custom_api_key_masked: str = ""
+    has_custom_api_key: bool = False
+    custom_query_param: str = "q"
+    max_results: int = 5
+
+
+class WebSearchTestRequest(BaseModel):
+    provider: Optional[str] = None
+    brave_api_key: Optional[str] = None
+    brave_endpoint: Optional[str] = None
+    searxng_url: Optional[str] = None
+    searxng_api_key: Optional[str] = None
+    tavily_api_key: Optional[str] = None
+    google_api_key: Optional[str] = None
+    google_cx: Optional[str] = None
+    bing_api_key: Optional[str] = None
+    bing_endpoint: Optional[str] = None
+    custom_url: Optional[str] = None
+    custom_api_key: Optional[str] = None
+    custom_query_param: Optional[str] = None
+    max_results: Optional[int] = None
+    query: Optional[str] = "Unsloth AI"
+
+
+class WebSearchTestResponse(BaseModel):
+    ok: bool
+    provider: str
+    results_count: int
+    sample_results: list[dict[str, Any]] = []
+    error: Optional[str] = None
+
+
+@router.get("/web-search", response_model = WebSearchSettingsResponse)
+def get_web_search_config(
+    current_subject: str = Depends(get_current_subject),
+) -> WebSearchSettingsResponse:
+    from utils.web_search_settings import get_web_search_settings
+    settings = get_web_search_settings(mask_secrets = True)
+    return WebSearchSettingsResponse(**settings)
+
+
+@router.put("/web-search", response_model = WebSearchSettingsResponse)
+def update_web_search_config(
+    payload: WebSearchSettingsPayload,
+    current_subject: str = Depends(get_current_subject),
+) -> WebSearchSettingsResponse:
+    from utils.web_search_settings import update_web_search_settings
+    data = payload.model_dump(exclude_unset = True)
+    updated = update_web_search_settings(data)
+    return WebSearchSettingsResponse(**updated)
+
+
+@router.post("/web-search/test", response_model = WebSearchTestResponse)
+def test_web_search_config(
+    payload: WebSearchTestRequest,
+    current_subject: str = Depends(get_current_subject),
+) -> WebSearchTestResponse:
+    from utils.web_search_settings import test_web_search_engine
+    data = payload.model_dump(exclude_unset = True)
+    query = data.pop("query", "Unsloth AI") or "Unsloth AI"
+    result = test_web_search_engine(data, query = query)
+    return WebSearchTestResponse(**result)
+

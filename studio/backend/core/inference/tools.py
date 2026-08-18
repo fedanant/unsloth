@@ -10823,10 +10823,11 @@ def _web_search(
     cancel_event = None,
     website_policy: dict | None = None,
 ) -> str:
-    """Search the web and return formatted results.
+    """Search the web and return formatted results using configured search engine.
 
-    ddgs fans the query out across its search engines, so a single engine refusing is already
-    covered. If ``url`` is provided, fetches that page directly instead of searching.
+    Supports DuckDuckGo, Brave Search API, SearXNG, Tavily, Google Custom Search,
+    Bing, and Custom Search web servers.
+    If ``url`` is provided, fetches that page directly instead of searching.
     """
     # Direct URL fetch mode.
     if url and url.strip():
@@ -10840,40 +10841,68 @@ def _web_search(
 
     if not query or not query.strip():
         return "No query provided."
-    # A disconnect sets cancel_event; DDGS.text() is blocking and cannot be
+    # A disconnect sets cancel_event; search is blocking and cannot be
     # interrupted mid-flight, so gate on either side: skip an already-cancelled
     # request, and discard results that land after the client has gone.
     if cancel_event is not None and cancel_event.is_set():
         return "Search cancelled."
     try:
-        from ddgs import DDGS
-
         from .web_access_policy import check_url_access, scope_search_query
+        from utils.web_search_settings import execute_engine_search_raw, get_web_search_settings
 
         effective_query = scope_search_query(query, website_policy)
-        # The policy filters below, so ask for a deeper pool when one actually restricts: a page
-        # whose top hits are all disallowed otherwise yields nothing even when valid results rank
-        # just under them. Test the domain lists, not the dict: a run always stores a normalized
-        # policy, which is truthy even when unrestricted.
         restricted = any(
             (website_policy or {}).get(key) for key in ("allowedDomains", "blockedDomains")
         )
         wanted = max_results * _POLICY_OVERFETCH if restricted else max_results
-        results = DDGS(timeout = timeout).text(effective_query, max_results = wanted)
+
+        settings = get_web_search_settings(mask_secrets = False)
+        provider = settings.get("provider", "duckduckgo")
+
+        raw_results = []
+        try:
+            raw_results = execute_engine_search_raw(
+                effective_query,
+                provider = provider,
+                config = settings,
+                max_results = wanted,
+                timeout = timeout or 20,
+            )
+        except Exception as exc:
+            if provider != "duckduckgo":
+                logger.warning(
+                    "Search provider '%s' failed (%s); falling back to DuckDuckGo.",
+                    provider,
+                    exc,
+                )
+                from ddgs import DDGS
+                ddgs_results = DDGS(timeout = timeout).text(effective_query, max_results = wanted)
+                raw_results = [
+                    {
+                        "title": " ".join(str(r.get("title") or "").split()),
+                        "url": str(r.get("href") or "").strip(),
+                        "snippet": " ".join(str(r.get("body") or "").split()),
+                    }
+                    for r in (ddgs_results or [])
+                ]
+            else:
+                raise
+
         if cancel_event is not None and cancel_event.is_set():
             return "Search cancelled."
-        if not results:
+        if not raw_results:
             return EMPTY_SEARCH_RESULTS[0]
+
         parts = []
-        for r in results:
+        for r in raw_results:
             if len(parts) >= max_results:
                 break
-            href = str(r.get("href") or "").strip()
+            href = str(r.get("url") or r.get("href") or "").strip()
             allowed, _reason, _hostname = check_url_access(href, website_policy)
             if not allowed:
                 continue
             title = " ".join(str(r.get("title") or "").split())
-            snippet = " ".join(str(r.get("body") or "").split())
+            snippet = " ".join(str(r.get("snippet") or r.get("body") or "").split())
             parts.append(f"Title: {title}\nURL: {href}\nSnippet: {snippet}")
         if not parts:
             return EMPTY_SEARCH_RESULTS[1]

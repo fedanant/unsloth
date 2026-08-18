@@ -1,0 +1,49 @@
+name: TEE Verification & Build CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  python-tee-tests:
+    name: Python TEE Verifier Unit Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install requests
+
+      - name: Run TEE Verifier Unit Tests
+        run: |
+          python -m unittest tests/test_tee_verifier.py
+
+  frontend-build:
+    name: Studio Frontend Build
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: studio/frontend
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Install dependencies
+        run: npm ci --ignore-scripts --no-fund --no-audit
+
+      - name: Typecheck and Build
+        run: |
+          npm run build

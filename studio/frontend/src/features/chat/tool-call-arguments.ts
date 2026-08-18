@@ -21,5 +21,23 @@ export function toolCallReplayArguments(
       // unparsable, so the structured args below stand in for it
     }
   }
-  return JSON.stringify(args ?? {});
+  if (typeof args === "string" && args.trim().length > 0) {
+    try {
+      JSON.parse(args);
+      return args;
+    } catch {
+      // unparsable string
+    }
+  }
+  if (args !== undefined && args !== null && typeof args === "object") {
+    try {
+      const serialized = JSON.stringify(args);
+      JSON.parse(serialized);
+      return serialized;
+    } catch {
+      return "{}";
+    }
+  }
+  return "{}";
 }
+

@@ -1048,6 +1048,89 @@ export const ru = {
         blockedBannerPlural: "Заблокировано внешних ресурсов: {count} с {hosts}.",
         blockedBannerAction: "Разрешить для этого Canvas",
       },
+      webSearch: {
+        title: "Веб-поиск и поисковые движки",
+        description:
+          "Настройка поисковых систем и веб-серверов для инструмента поиска в чате.",
+        webSearchKeywords:
+          "web search engine brave searxng tavily google bing duckduckgo веб сервер поиск поисковик движок",
+        engineLabel: "Поисковый провайдер",
+        engineDescription:
+          "Выберите поисковый сервис или сервер для поиска информации в интернете.",
+        optionalSecret: "Необязательный API ключ или пароль",
+        loadError: "Не удалось загрузить настройки веб-поиска.",
+        saveSuccess: "Настройки веб-поиска сохранены.",
+        saveError: "Не удалось сохранить настройки веб-поиска.",
+        testLabel: "Проверка поиска",
+        testDescription:
+          "Тестовый запрос к настроенному поисковому движку или веб-серверу.",
+        testQueryPlaceholder: "Введите поисковый запрос…",
+        runTest: "Проверить",
+        testSuccess: "Успешно найдено результатов: {count}.",
+        testSuccessStatus: "Поиск выполнен успешно (найдено: {count})",
+        testFailed: "Ошибка проверки поиска.",
+        testFailedStatus: "Ошибка поиска",
+        providers: {
+          duckduckgo: "DuckDuckGo",
+          duckduckgoDesc: "Встроенный бесплатный поиск без необходимости в API ключах.",
+          brave: "Brave Search",
+          braveDesc: "Brave Search API с независимым индексом веб-страниц.",
+          searxng: "SearXNG",
+          searxngDesc:
+            "Собственный или публичный веб-сервер SearXNG с защитой конфиденциальности.",
+          tavily: "Tavily",
+          tavilyDesc: "Поисковый движок, оптимизированный для ИИ и LLM-агентов.",
+          google: "Google Custom Search",
+          googleDesc: "Google Custom Search JSON API.",
+          bing: "Bing Search",
+          bingDesc: "Microsoft Azure Bing Web Search API.",
+          custom: "Пользовательский веб-сервер",
+          customDesc: "Произвольный API эндпоинт или прокси-сервер веб-поиска.",
+        },
+        brave: {
+          apiKeyLabel: "API ключ Brave",
+          apiKeyDescription: "Ключ подписки Brave Search API.",
+          getKeyLink: "Получить API ключ Brave",
+          endpointLabel: "Эндпоинт Brave",
+          endpointDescription: "URL адрес REST API сервиса Brave search.",
+        },
+        searxng: {
+          urlLabel: "URL сервера SearXNG",
+          urlDescription:
+            "Базовый URL вашего веб-сервера SearXNG (например, http://localhost:8080).",
+          apiKeyLabel: "API ключ / Секрет",
+          apiKeyDescription:
+            "Необязательный ключ аутентификации для закрытых инстансов SearXNG.",
+        },
+        tavily: {
+          apiKeyLabel: "API ключ Tavily",
+          apiKeyDescription: "Ключ доступа к Tavily Search API.",
+          getKeyLink: "Получить API ключ Tavily",
+        },
+        google: {
+          apiKeyLabel: "API ключ Google",
+          apiKeyDescription: "Ключ Google Cloud API для Custom Search.",
+          cxLabel: "Идентификатор поисковой системы (cx)",
+          cxDescription:
+            "Search Engine ID из Google Programmable Search Engine.",
+        },
+        bing: {
+          apiKeyLabel: "API ключ Bing",
+          apiKeyDescription: "Ключ Azure Cognitive Services Bing Search API.",
+          endpointLabel: "Эндпоинт Bing",
+          endpointDescription: "URL адрес эндпоинта Azure Bing Web Search.",
+        },
+        custom: {
+          urlLabel: "URL сервера / Эндпоинт",
+          urlDescription: "Полный URL веб-сервера поиска.",
+          apiKeyLabel: "API ключ / Заголовок авторизации",
+          apiKeyDescription:
+            "Необязательный токен Bearer или API ключ.",
+          queryParamLabel: "Параметр запроса",
+          queryParamDescription:
+            "Имя URL параметра с текстом поискового запроса (по умолчанию: q).",
+        },
+      },
       data: "Данные",
       exportHistory: "Экспортировать историю чатов",
       exportHistoryDescription: "Скачать все чаты и сообщения в формате JSON.",
