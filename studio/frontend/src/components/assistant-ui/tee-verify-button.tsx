@@ -111,38 +111,38 @@ export const TeeVerifyButton: FC<{ className?: string }> = ({ className }) => {
         side="top"
         align="center"
         sideOffset={6}
-        className="w-80 rounded-2xl border border-border/60 bg-popover/95 p-3.5 shadow-2xl backdrop-blur-md dark:bg-card/95"
+        className="w-80 rounded-2xl border border-emerald-500/30 bg-popover/95 p-3.5 shadow-2xl backdrop-blur-md dark:border-emerald-500/20 dark:bg-card/95"
       >
         <div className="flex flex-col gap-2.5">
           {/* Заголовок статуса */}
           <div className="flex items-center justify-between border-b border-border/40 pb-2">
             <div className="flex items-center gap-1.5">
-              <div className="flex size-5 items-center justify-center rounded-full bg-muted text-foreground">
+              <div className="flex size-5 items-center justify-center rounded-full bg-emerald-500/15 text-emerald-500">
                 <CheckCircle2 className="size-3.5" />
               </div>
               <span className="text-xs font-semibold text-foreground tracking-tight">
                 TEE Verified Response
               </span>
             </div>
-            <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
+            <span className="rounded-full bg-emerald-500/10 px-2 py-0.5 text-[10px] font-medium text-emerald-600 dark:text-emerald-400">
               {teeData.verifiability} • {teeData.trust_mode}
             </span>
           </div>
 
-          {/* Аппаратная среда */}
-          <div className="grid grid-cols-2 gap-2 text-[11px]">
+          {/* Аппаратная среда и Верификатор справа */}
+          <div className="flex items-center justify-between text-[11px]">
             <div className="flex items-center gap-1.5 text-muted-foreground">
-              <Cpu className="size-3 text-foreground/70" />
-              <span>{teeData.tee_type}</span>
+              <Cpu className="size-3.5 text-emerald-500" />
+              <span className="font-medium text-foreground">{teeData.tee_type}</span>
             </div>
             <div className="flex items-center gap-1.5 text-muted-foreground">
-              <Lock className="size-3 text-foreground/70" />
-              <span>Verifier: {teeData.tee_verifier}</span>
+              <Lock className="size-3 text-emerald-500" />
+              <span>Verifier: <span className="font-medium text-foreground">{teeData.tee_verifier}</span></span>
             </div>
           </div>
 
           {/* Хэши и адреса */}
-          <div className="flex flex-col gap-1.5 rounded-lg bg-muted/60 p-2 font-mono text-[10px]">
+          <div className="flex flex-col gap-1.5 rounded-lg border border-emerald-500/15 bg-muted/60 p-2 font-mono text-[10px]">
             <div>
               <span className="text-muted-foreground">TEE Signer:</span>{" "}
               <span className="text-foreground font-medium">
@@ -151,7 +151,7 @@ export const TeeVerifyButton: FC<{ className?: string }> = ({ className }) => {
             </div>
             <div>
               <span className="text-muted-foreground">Compose Hash:</span>{" "}
-              <span className="text-foreground font-medium">
+              <span className="font-medium text-emerald-600 dark:text-emerald-400">
                 {teeData.compose_hash?.slice(0, 16)}...
               </span>
             </div>
@@ -168,7 +168,9 @@ export const TeeVerifyButton: FC<{ className?: string }> = ({ className }) => {
             <span className="flex items-center gap-1">
               <Copy className="size-3" /> Нажмите, чтобы скопировать пруф
             </span>
-            <span className="font-medium text-foreground/80">Valid</span>
+            <span className="flex items-center gap-1 font-semibold text-emerald-600 dark:text-emerald-400">
+              <CheckCircle2 className="size-3" /> Valid
+            </span>
           </div>
         </div>
       </HoverCardContent>
