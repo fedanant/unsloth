@@ -92,23 +92,18 @@ export const TeeVerifyButton: FC<{ className?: string }> = ({ className }) => {
           type="button"
           onClick={handleCopyProof}
           className={cn(
-            "relative inline-flex size-8 items-center justify-center rounded-full text-emerald-600 transition-all duration-200 hover:bg-emerald-500/10 hover:text-emerald-500 active:scale-95 dark:text-emerald-400 dark:hover:bg-emerald-400/10",
-            copied && "text-emerald-500 bg-emerald-500/15",
+            "relative inline-flex size-8 items-center justify-center rounded-full text-chat-icon-fg transition-colors duration-150 hover:bg-chat-icon-bg-hover hover:text-chat-icon-fg-hover active:scale-95",
+            copied && "text-foreground bg-accent",
             className
           )}
           aria-label="TEE Verification Proof"
           title="TEE Verified Response (Click to copy proof)"
         >
           {copied ? (
-            <Check className="size-4 animate-in zoom-in-75 duration-150" />
+            <Check className="size-icon animate-in zoom-in-75 duration-150" />
           ) : (
-            <ShieldCheck className="size-4 transition-transform group-hover:scale-110" />
+            <ShieldCheck className="size-icon" />
           )}
-          {/* Пульсирующий индикатор подлинности */}
-          <span className="absolute -top-0.5 -right-0.5 flex size-2">
-            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
-            <span className="relative inline-flex size-2 rounded-full bg-emerald-500" />
-          </span>
         </button>
       </HoverCardTrigger>
 
@@ -116,20 +111,20 @@ export const TeeVerifyButton: FC<{ className?: string }> = ({ className }) => {
         side="top"
         align="center"
         sideOffset={6}
-        className="w-80 rounded-2xl border border-emerald-500/20 bg-popover/95 p-3.5 shadow-2xl backdrop-blur-md dark:bg-card/95"
+        className="w-80 rounded-2xl border border-border/60 bg-popover/95 p-3.5 shadow-2xl backdrop-blur-md dark:bg-card/95"
       >
         <div className="flex flex-col gap-2.5">
           {/* Заголовок статуса */}
           <div className="flex items-center justify-between border-b border-border/40 pb-2">
             <div className="flex items-center gap-1.5">
-              <div className="flex size-5 items-center justify-center rounded-full bg-emerald-500/15 text-emerald-500">
+              <div className="flex size-5 items-center justify-center rounded-full bg-muted text-foreground">
                 <CheckCircle2 className="size-3.5" />
               </div>
               <span className="text-xs font-semibold text-foreground tracking-tight">
                 TEE Verified Response
               </span>
             </div>
-            <span className="rounded-full bg-emerald-500/10 px-2 py-0.5 text-[10px] font-medium text-emerald-600 dark:text-emerald-400">
+            <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
               {teeData.verifiability} • {teeData.trust_mode}
             </span>
           </div>
@@ -137,11 +132,11 @@ export const TeeVerifyButton: FC<{ className?: string }> = ({ className }) => {
           {/* Аппаратная среда */}
           <div className="grid grid-cols-2 gap-2 text-[11px]">
             <div className="flex items-center gap-1.5 text-muted-foreground">
-              <Cpu className="size-3 text-emerald-500" />
+              <Cpu className="size-3 text-foreground/70" />
               <span>{teeData.tee_type}</span>
             </div>
             <div className="flex items-center gap-1.5 text-muted-foreground">
-              <Lock className="size-3 text-emerald-500" />
+              <Lock className="size-3 text-foreground/70" />
               <span>Verifier: {teeData.tee_verifier}</span>
             </div>
           </div>
@@ -156,7 +151,7 @@ export const TeeVerifyButton: FC<{ className?: string }> = ({ className }) => {
             </div>
             <div>
               <span className="text-muted-foreground">Compose Hash:</span>{" "}
-              <span className="text-emerald-600 dark:text-emerald-400 font-medium">
+              <span className="text-foreground font-medium">
                 {teeData.compose_hash?.slice(0, 16)}...
               </span>
             </div>
@@ -173,7 +168,7 @@ export const TeeVerifyButton: FC<{ className?: string }> = ({ className }) => {
             <span className="flex items-center gap-1">
               <Copy className="size-3" /> Нажмите, чтобы скопировать пруф
             </span>
-            <span className="text-emerald-500 font-medium">Valid</span>
+            <span className="font-medium text-foreground/80">Valid</span>
           </div>
         </div>
       </HoverCardContent>
