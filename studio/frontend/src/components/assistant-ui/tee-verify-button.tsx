@@ -56,6 +56,11 @@ export const TeeVerifyButton: FC<{ className?: string }> = ({ className }) => {
     providerName.toLowerCase().includes("dstack")
   );
 
+  // Скрываем кнопку для всех сообщений без TEE / Local Hardware
+  if (!isTee) {
+    return null;
+  }
+
   const teeData: TeeMetadata = {
     verified: rawTee?.verified ?? true,
     verifiability: rawTee?.verifiability || "TeeML",
@@ -70,43 +75,25 @@ export const TeeVerifyButton: FC<{ className?: string }> = ({ className }) => {
     timestamp: rawTee?.timestamp || Date.now(),
   };
 
-  const copyPayload = isTee
-    ? JSON.stringify(
-        {
-          proof_type: "0G_TEE_REMOTE_ATTESTATION",
-          status: "VALID",
-          message_id: messageId,
-          ...teeData,
-          content_snippet: content.slice(0, 100) + (content.length > 100 ? "..." : ""),
-        },
-        null,
-        2
-      )
-    : JSON.stringify(
-        {
-          execution_mode: "LOCAL_ON_DEVICE",
-          status: "LOCAL",
-          message_id: messageId,
-          privacy: "100% On-Device (No Remote TEE Needed)",
-          timestamp: Date.now(),
-        },
-        null,
-        2
-      );
+  const copyPayload = JSON.stringify(
+    {
+      proof_type: "0G_TEE_REMOTE_ATTESTATION",
+      status: "VALID",
+      message_id: messageId,
+      ...teeData,
+      content_snippet: content.slice(0, 100) + (content.length > 100 ? "..." : ""),
+    },
+    null,
+    2
+  );
 
   const handleCopyProof = async (e: MouseEvent<HTMLButtonElement>) => {
     e.stopPropagation();
     if (await copyToClipboard(copyPayload)) {
       setCopied(true);
-      if (isTee) {
-        toast.success("Данные TEE верификации скопированы!", {
-          description: `Signer: ${teeData.signer_address?.slice(0, 10)}... | Compose Hash Valid`,
-        });
-      } else {
-        toast.success("Данные о локальном исполнении скопированы!", {
-          description: "Модель исполняется локально на вашем ПК (100% On-Device).",
-        });
-      }
+      toast.success("Данные TEE верификации скопированы!", {
+        description: `Signer: ${teeData.signer_address?.slice(0, 10)}... | Compose Hash Valid`,
+      });
 
       if (resetTimeoutRef.current) {
         clearTimeout(resetTimeoutRef.current);
@@ -129,13 +116,11 @@ export const TeeVerifyButton: FC<{ className?: string }> = ({ className }) => {
             copied && "text-foreground bg-accent",
             className
           )}
-          aria-label={isTee ? "TEE Verification Proof" : "Local Execution Info"}
-          title={isTee ? "TEE Verified Response (Click to copy proof)" : "Local Model (Click for info)"}
+          aria-label="TEE Verification Proof"
+          title="TEE Verified Response (Click to copy proof)"
         >
           {copied ? (
             <Check className="size-icon animate-in zoom-in-75 duration-150" />
-          ) : isTee ? (
-            <ShieldCheck className="size-icon text-emerald-600 dark:text-emerald-400" />
           ) : (
             <ShieldCheck className="size-icon" />
           )}
@@ -146,113 +131,68 @@ export const TeeVerifyButton: FC<{ className?: string }> = ({ className }) => {
         side="top"
         align="center"
         sideOffset={6}
-        className={cn(
-          "w-80 rounded-2xl p-3.5 shadow-2xl backdrop-blur-md",
-          isTee
-            ? "border border-emerald-500/30 bg-popover/95 dark:border-emerald-500/20 dark:bg-card/95"
-            : "border border-border/60 bg-popover/95 dark:bg-card/95"
-        )}
+        className="w-80 rounded-2xl border border-emerald-500/30 bg-popover/95 p-3.5 shadow-2xl backdrop-blur-md dark:border-emerald-500/20 dark:bg-card/95"
       >
-        {isTee ? (
-          <div className="flex flex-col gap-2.5">
-            {/* Заголовок статуса TEE */}
-            <div className="flex items-center justify-between border-b border-border/40 pb-2">
-              <div className="flex items-center gap-1.5">
-                <div className="flex size-5 items-center justify-center rounded-full bg-emerald-500/15 text-emerald-500">
-                  <CheckCircle2 className="size-3.5" />
-                </div>
-                <span className="text-xs font-semibold text-foreground tracking-tight">
-                  TEE Verified Response
-                </span>
+        <div className="flex flex-col gap-2.5">
+          {/* Заголовок статуса TEE */}
+          <div className="flex items-center justify-between border-b border-border/40 pb-2">
+            <div className="flex items-center gap-1.5">
+              <div className="flex size-5 items-center justify-center rounded-full bg-emerald-500/15 text-emerald-500">
+                <CheckCircle2 className="size-3.5" />
               </div>
-              <span className="rounded-full bg-emerald-500/10 px-2 py-0.5 text-[10px] font-medium text-emerald-600 dark:text-emerald-400">
-                {teeData.verifiability} • {teeData.trust_mode}
+              <span className="text-xs font-semibold text-foreground tracking-tight">
+                TEE Verified Response
               </span>
             </div>
+            <span className="rounded-full bg-emerald-500/10 px-2 py-0.5 text-[10px] font-medium text-emerald-600 dark:text-emerald-400">
+              {teeData.verifiability} • {teeData.trust_mode}
+            </span>
+          </div>
 
-            {/* Аппаратная среда и Верификатор справа */}
-            <div className="flex items-center justify-between text-[11px]">
-              <div className="flex items-center gap-1.5 text-muted-foreground">
-                <Cpu className="size-3.5 text-emerald-500" />
-                <span className="font-medium text-foreground">{teeData.tee_type}</span>
-              </div>
-              <div className="flex items-center gap-1.5 text-muted-foreground">
-                <Lock className="size-3 text-emerald-500" />
-                <span>Verifier: <span className="font-medium text-foreground">{teeData.tee_verifier}</span></span>
-              </div>
+          {/* Аппаратная среда и Верификатор справа */}
+          <div className="flex items-center justify-between text-[11px]">
+            <div className="flex items-center gap-1.5 text-muted-foreground">
+              <Cpu className="size-3.5 text-emerald-500" />
+              <span className="font-medium text-foreground">{teeData.tee_type}</span>
             </div>
-
-            {/* Хэши и адреса */}
-            <div className="flex flex-col gap-1.5 rounded-lg border border-emerald-500/15 bg-muted/60 p-2 font-mono text-[10px]">
-              <div>
-                <span className="text-muted-foreground">TEE Signer:</span>{" "}
-                <span className="text-foreground font-medium">
-                  {teeData.signer_address ? `${teeData.signer_address.slice(0, 12)}...${teeData.signer_address.slice(-6)}` : "Verified"}
-                </span>
-              </div>
-              <div>
-                <span className="text-muted-foreground">Compose Hash:</span>{" "}
-                <span className="font-medium text-emerald-600 dark:text-emerald-400">
-                  {teeData.compose_hash?.slice(0, 16)}...
-                </span>
-              </div>
-              <div>
-                <span className="text-muted-foreground">MRTD:</span>{" "}
-                <span className="text-foreground">
-                  {teeData.mrtd?.slice(0, 16)}...
-                </span>
-              </div>
+            <div className="flex items-center gap-1.5 text-muted-foreground">
+              <Lock className="size-3 text-emerald-500" />
+              <span>Verifier: <span className="font-medium text-foreground">{teeData.tee_verifier}</span></span>
             </div>
+          </div>
 
-            {/* Подсказка при клике */}
-            <div className="flex items-center justify-between pt-0.5 text-[10px] text-muted-foreground">
-              <span className="flex items-center gap-1">
-                <Copy className="size-3" /> Нажмите, чтобы скопировать пруф
+          {/* Хэши и адреса */}
+          <div className="flex flex-col gap-1.5 rounded-lg border border-emerald-500/15 bg-muted/60 p-2 font-mono text-[10px]">
+            <div>
+              <span className="text-muted-foreground">TEE Signer:</span>{" "}
+              <span className="text-foreground font-medium">
+                {teeData.signer_address ? `${teeData.signer_address.slice(0, 12)}...${teeData.signer_address.slice(-6)}` : "Verified"}
               </span>
-              <span className="flex items-center gap-1 font-semibold text-emerald-600 dark:text-emerald-400">
-                <CheckCircle2 className="size-3" /> Valid
+            </div>
+            <div>
+              <span className="text-muted-foreground">Compose Hash:</span>{" "}
+              <span className="font-medium text-emerald-600 dark:text-emerald-400">
+                {teeData.compose_hash?.slice(0, 16)}...
+              </span>
+            </div>
+            <div>
+              <span className="text-muted-foreground">MRTD:</span>{" "}
+              <span className="text-foreground">
+                {teeData.mrtd?.slice(0, 16)}...
               </span>
             </div>
           </div>
-        ) : (
-          <div className="flex flex-col gap-2.5">
-            {/* Заголовок статуса Local */}
-            <div className="flex items-center justify-between border-b border-border/40 pb-2">
-              <div className="flex items-center gap-1.5">
-                <div className="flex size-5 items-center justify-center rounded-full bg-primary/10 text-primary">
-                  <HardDrive className="size-3.5" />
-                </div>
-                <span className="text-xs font-semibold text-foreground tracking-tight">
-                  Local Execution
-                </span>
-              </div>
-              <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
-                On-Device • Private
-              </span>
-            </div>
 
-            {/* Описание локального режима */}
-            <p className="text-[11px] leading-relaxed text-muted-foreground">
-              Модель исполняется локально на вашем компьютере (GPU/CPU). Данные полностью изолированы и не передаются по сети.
-            </p>
-
-            {/* Детали */}
-            <div className="flex items-center justify-between rounded-lg bg-muted/60 px-2.5 py-1.5 text-[10px] text-muted-foreground">
-              <span className="flex items-center gap-1">
-                <Cpu className="size-3 text-foreground/70" /> Local Hardware
-              </span>
-              <span className="font-medium text-foreground">100% Offline</span>
-            </div>
-
-            {/* Подсказка */}
-            <div className="flex items-center justify-between pt-0.5 text-[10px] text-muted-foreground">
-              <span className="flex items-center gap-1">
-                <Info className="size-3" /> TEE не требуется
-              </span>
-              <span className="font-medium text-primary">Secure</span>
-            </div>
+          {/* Подсказка при клике */}
+          <div className="flex items-center justify-between pt-0.5 text-[10px] text-muted-foreground">
+            <span className="flex items-center gap-1">
+              <Copy className="size-3" /> Нажмите, чтобы скопировать пруф
+            </span>
+            <span className="flex items-center gap-1 font-semibold text-emerald-600 dark:text-emerald-400">
+              <CheckCircle2 className="size-3" /> Valid
+            </span>
           </div>
-        )}
+        </div>
       </HoverCardContent>
     </HoverCard>
   );
