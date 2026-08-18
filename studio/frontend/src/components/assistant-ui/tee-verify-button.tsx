@@ -37,22 +37,28 @@ export const TeeVerifyButton: FC<{ className?: string }> = ({ className }) => {
       .join("");
   });
 
-  // Извлекаем или формируем TEE данные для верификации
+  // Проверяем наличие реальных TEE метаданных
   const custom = (metadata as { custom?: Record<string, unknown> } | undefined)?.custom;
-  const rawTee = (custom?.tee_metadata || {}) as TeeMetadata;
+  const rawTee = custom?.tee_metadata as TeeMetadata | undefined;
+  const isTee = Boolean(rawTee || custom?.is_tee);
+
+  // Скрываем кнопку для всех локальных сообщений и сообщений без TEE
+  if (!isTee) {
+    return null;
+  }
 
   const teeData: TeeMetadata = {
-    verified: rawTee.verified ?? true,
-    verifiability: rawTee.verifiability || "TeeML",
-    trust_mode: rawTee.trust_mode || "private",
-    tee_type: rawTee.tee_type || "Intel TDX",
-    tee_verifier: rawTee.tee_verifier || "dstack",
-    signer_address: rawTee.signer_address || "0x2A94D671f1A5e080f75A8164087Cdd35c8442e69",
-    compose_hash: rawTee.compose_hash || "8779f38c1cc5d1e643fbfc7238bae2c227f7ffa4c72c049802942658acfc5bee",
-    mrtd: rawTee.mrtd || "b24d3b24e9e3c16012376b52362ca09856c4adecb709d5fac33addf1c47e193da075b125b6c364115771390a5461e217",
-    rtmr0: rawTee.rtmr0 || "6ffe4a2c12f07eccb857f70f370a5af848a7062905cd95adc43abb1f62c39e330aa3c8aeb8f162656c025f3f527600f1",
-    rtmr3: rawTee.rtmr3 || "aa7233f0ae41e48c5d2d7807496d7fb8fa4015f752ba215dd412a2efa2a2787f4a3874dff71ff3e728de3d39341cdc6f",
-    timestamp: rawTee.timestamp || Date.now(),
+    verified: rawTee?.verified ?? true,
+    verifiability: rawTee?.verifiability || "TeeML",
+    trust_mode: rawTee?.trust_mode || "private",
+    tee_type: rawTee?.tee_type || "Intel TDX",
+    tee_verifier: rawTee?.tee_verifier || "dstack",
+    signer_address: rawTee?.signer_address || "",
+    compose_hash: rawTee?.compose_hash || "",
+    mrtd: rawTee?.mrtd || "",
+    rtmr0: rawTee?.rtmr0 || "",
+    rtmr3: rawTee?.rtmr3 || "",
+    timestamp: rawTee?.timestamp || Date.now(),
   };
 
   const fullProofJson = JSON.stringify(
