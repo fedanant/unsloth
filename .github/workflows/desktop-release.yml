@@ -70,12 +70,12 @@ jobs:
       - name: Build Tauri Desktop Bundle (macOS)
         if: matrix.os == 'macos-latest'
         run: |
-          npx --prefix studio tauri build --bundles dmg
+          npx --prefix studio tauri build --bundles dmg --config '{"bundle":{"createUpdaterArtifacts":false}}'
 
       - name: Build Tauri Desktop Bundle (Windows)
         if: matrix.os == 'windows-latest'
         run: |
-          npx --prefix studio tauri build --bundles nsis
+          npx --prefix studio tauri build --bundles nsis --config '{"bundle":{"createUpdaterArtifacts":false}}'
 
       - name: Upload Build Artifacts
         uses: actions/upload-artifact@v4

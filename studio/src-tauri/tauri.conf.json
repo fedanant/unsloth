@@ -52,7 +52,7 @@
   },
   "bundle": {
     "active": true,
-    "createUpdaterArtifacts": true,
+    "createUpdaterArtifacts": false,
     "publisher": "Unsloth AI",
     "homepage": "https://unsloth.ai/",
     "copyright": "© 2026 Unsloth AI. All rights reserved.",
