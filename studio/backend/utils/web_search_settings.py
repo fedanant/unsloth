@@ -13,6 +13,7 @@ import logging
 import threading
 import time
 from typing import Any, Optional
+from urllib.parse import urlsplit
 import httpx
 
 logger = logging.getLogger(__name__)
@@ -20,6 +21,8 @@ logger = logging.getLogger(__name__)
 WEB_SEARCH_SETTINGS_KEY = "web_search_settings"
 SUPPORTED_PROVIDERS = ("duckduckgo", "brave", "searxng", "tavily", "google", "bing", "custom")
 DEFAULT_PROVIDER = "duckduckgo"
+SUPPORTED_NETWORK_ROUTES = ("direct", "tor", "i2p")
+DEFAULT_NETWORK_ROUTE = "direct"
 
 _lock = threading.Lock()
 _cached_settings: dict[str, Any] | None = None
@@ -42,6 +45,9 @@ def _get_default_settings() -> dict[str, Any]:
         "custom_url": "",
         "custom_api_key": "",
         "custom_query_param": "q",
+        "network_route": DEFAULT_NETWORK_ROUTE,
+        "tor_proxy_url": "socks5h://127.0.0.1:9050",
+        "i2p_proxy_url": "http://127.0.0.1:4444",
         "max_results": 5,
     }
 
@@ -88,6 +94,8 @@ def get_web_search_settings(mask_secrets: bool = True) -> dict[str, Any]:
         defaults = _get_default_settings()
         defaults.update(stored)
         raw = defaults
+        if raw.get("network_route") not in SUPPORTED_NETWORK_ROUTES:
+            raw["network_route"] = DEFAULT_NETWORK_ROUTE
         with _lock:
             _cached_settings = dict(raw)
             _cache_time = time.monotonic()
@@ -129,6 +137,10 @@ def update_web_search_settings(updates: dict[str, Any]) -> dict[str, Any]:
     if provider in SUPPORTED_PROVIDERS:
         current["provider"] = provider
 
+    network_route = updates.get("network_route")
+    if network_route in SUPPORTED_NETWORK_ROUTES:
+        current["network_route"] = network_route
+
     secret_fields = (
         "brave_api_key",
         "searxng_api_key",
@@ -154,6 +166,8 @@ def update_web_search_settings(updates: dict[str, Any]) -> dict[str, Any]:
         "custom_url",
         "google_cx",
         "custom_query_param",
+        "tor_proxy_url",
+        "i2p_proxy_url",
     )
     for field in url_fields:
         if field in updates:
@@ -172,12 +186,63 @@ def update_web_search_settings(updates: dict[str, Any]) -> dict[str, Any]:
     return get_web_search_settings(mask_secrets = True)
 
 
+def get_web_search_proxy_url(config: dict[str, Any]) -> str | None:
+    """Return the explicit proxy for the configured web-search route.
+
+    Proxy routing is fail-closed: selecting Tor or I2P without a valid proxy
+    raises instead of silently sending the request over the direct network.
+    ``socks5h`` is required for Tor so the destination hostname is resolved by
+    Tor rather than by the Studio host. I2P clearnet access uses the router's
+    HTTP(S) outproxy; I2P's SOCKS proxy does not provide clearnet exits.
+    """
+    route = str(config.get("network_route") or DEFAULT_NETWORK_ROUTE).strip().lower()
+    if route not in SUPPORTED_NETWORK_ROUTES:
+        raise ValueError(f"Unknown web search network route: {route}")
+    if route == "direct":
+        return None
+
+    field = "tor_proxy_url" if route == "tor" else "i2p_proxy_url"
+    proxy_url = str(config.get(field) or "").strip()
+    if not proxy_url:
+        raise ValueError(f"{route.upper()} proxy URL is not configured.")
+
+    try:
+        parsed = urlsplit(proxy_url)
+        _ = parsed.port
+    except ValueError as exc:
+        raise ValueError(f"Invalid {route.upper()} proxy URL: {exc}") from exc
+    if not parsed.hostname or parsed.query or parsed.fragment or parsed.path not in ("", "/"):
+        raise ValueError(f"Invalid {route.upper()} proxy URL.")
+    if parsed.username is not None or parsed.password is not None:
+        raise ValueError("Proxy credentials in web search settings are not supported.")
+
+    allowed_schemes = {"socks5h"} if route == "tor" else {"http", "https"}
+    if parsed.scheme.lower() not in allowed_schemes:
+        expected = "socks5h" if route == "tor" else "http or https"
+        raise ValueError(f"{route.upper()} proxy URL must use {expected}.")
+    return proxy_url
+
+
+def _search_http_client(timeout: int, proxy_url: str | None) -> httpx.Client:
+    kwargs: dict[str, Any] = {
+        "timeout": timeout,
+        "follow_redirects": True,
+    }
+    if proxy_url:
+        # An explicit privacy route must not be altered or bypassed by ambient
+        # HTTP_PROXY/NO_PROXY settings inherited by the Studio process.
+        kwargs["proxy"] = proxy_url
+        kwargs["trust_env"] = False
+    return httpx.Client(**kwargs)
+
+
 def _search_brave(
     query: str,
     api_key: str,
     endpoint: str | None,
     max_results: int,
     timeout: int,
+    proxy_url: str | None,
 ) -> list[dict[str, str]]:
     if not api_key:
         raise ValueError("Brave Search API key is not configured.")
@@ -191,7 +256,7 @@ def _search_brave(
         "q": query,
         "count": min(max_results, 20),
     }
-    with httpx.Client(timeout = timeout, follow_redirects = True) as client:
+    with _search_http_client(timeout, proxy_url) as client:
         resp = client.get(url, headers = headers, params = params)
         resp.raise_for_status()
         data = resp.json()
@@ -212,6 +277,7 @@ def _search_searxng(
     api_key: str | None,
     max_results: int,
     timeout: int,
+    proxy_url: str | None,
 ) -> list[dict[str, str]]:
     if not server_url:
         raise ValueError("SearXNG server URL is not configured.")
@@ -226,7 +292,7 @@ def _search_searxng(
         "q": query,
         "format": "json",
     }
-    with httpx.Client(timeout = timeout, follow_redirects = True) as client:
+    with _search_http_client(timeout, proxy_url) as client:
         resp = client.get(url, headers = headers, params = params)
         resp.raise_for_status()
         data = resp.json()
@@ -246,6 +312,7 @@ def _search_tavily(
     api_key: str,
     max_results: int,
     timeout: int,
+    proxy_url: str | None,
 ) -> list[dict[str, str]]:
     if not api_key:
         raise ValueError("Tavily API key is not configured.")
@@ -255,7 +322,7 @@ def _search_tavily(
         "max_results": max_results,
         "api_key": api_key,
     }
-    with httpx.Client(timeout = timeout, follow_redirects = True) as client:
+    with _search_http_client(timeout, proxy_url) as client:
         resp = client.post(url, json = payload)
         resp.raise_for_status()
         data = resp.json()
@@ -276,6 +343,7 @@ def _search_google(
     cx: str,
     max_results: int,
     timeout: int,
+    proxy_url: str | None,
 ) -> list[dict[str, str]]:
     if not api_key or not cx:
         raise ValueError("Google Custom Search API key and Search Engine ID (cx) must both be configured.")
@@ -286,7 +354,7 @@ def _search_google(
         "cx": cx,
         "num": min(max_results, 10),
     }
-    with httpx.Client(timeout = timeout, follow_redirects = True) as client:
+    with _search_http_client(timeout, proxy_url) as client:
         resp = client.get(url, params = params)
         resp.raise_for_status()
         data = resp.json()
@@ -307,6 +375,7 @@ def _search_bing(
     endpoint: str | None,
     max_results: int,
     timeout: int,
+    proxy_url: str | None,
 ) -> list[dict[str, str]]:
     if not api_key:
         raise ValueError("Bing Search API key is not configured.")
@@ -319,7 +388,7 @@ def _search_bing(
         "q": query,
         "count": min(max_results, 20),
     }
-    with httpx.Client(timeout = timeout, follow_redirects = True) as client:
+    with _search_http_client(timeout, proxy_url) as client:
         resp = client.get(url, headers = headers, params = params)
         resp.raise_for_status()
         data = resp.json()
@@ -341,6 +410,7 @@ def _search_custom(
     query_param: str | None,
     max_results: int,
     timeout: int,
+    proxy_url: str | None,
 ) -> list[dict[str, str]]:
     if not server_url:
         raise ValueError("Custom search server URL is not configured.")
@@ -351,7 +421,7 @@ def _search_custom(
 
     q_param = query_param or "q"
     params = {q_param: query}
-    with httpx.Client(timeout = timeout, follow_redirects = True) as client:
+    with _search_http_client(timeout, proxy_url) as client:
         resp = client.get(server_url, headers = headers, params = params)
         resp.raise_for_status()
         data = resp.json()
@@ -389,6 +459,7 @@ def execute_engine_search_raw(
     timeout: int = 20,
 ) -> list[dict[str, str]]:
     """Execute raw search against the specified provider; returns list of dicts with title, url, snippet."""
+    proxy_url = get_web_search_proxy_url(config)
     if provider == "brave":
         return _search_brave(
             query,
@@ -396,6 +467,7 @@ def execute_engine_search_raw(
             endpoint = config.get("brave_endpoint"),
             max_results = max_results,
             timeout = timeout,
+            proxy_url = proxy_url,
         )
     elif provider == "searxng":
         return _search_searxng(
@@ -404,6 +476,7 @@ def execute_engine_search_raw(
             api_key = config.get("searxng_api_key"),
             max_results = max_results,
             timeout = timeout,
+            proxy_url = proxy_url,
         )
     elif provider == "tavily":
         return _search_tavily(
@@ -411,6 +484,7 @@ def execute_engine_search_raw(
             api_key = config.get("tavily_api_key", ""),
             max_results = max_results,
             timeout = timeout,
+            proxy_url = proxy_url,
         )
     elif provider == "google":
         return _search_google(
@@ -419,6 +493,7 @@ def execute_engine_search_raw(
             cx = config.get("google_cx", ""),
             max_results = max_results,
             timeout = timeout,
+            proxy_url = proxy_url,
         )
     elif provider == "bing":
         return _search_bing(
@@ -427,6 +502,7 @@ def execute_engine_search_raw(
             endpoint = config.get("bing_endpoint"),
             max_results = max_results,
             timeout = timeout,
+            proxy_url = proxy_url,
         )
     elif provider == "custom":
         return _search_custom(
@@ -436,10 +512,14 @@ def execute_engine_search_raw(
             query_param = config.get("custom_query_param"),
             max_results = max_results,
             timeout = timeout,
+            proxy_url = proxy_url,
         )
     elif provider == "duckduckgo":
         from ddgs import DDGS
-        results = DDGS(timeout = timeout).text(query, max_results = max_results)
+        ddgs_kwargs: dict[str, Any] = {"timeout": timeout}
+        if proxy_url:
+            ddgs_kwargs["proxy"] = proxy_url
+        results = DDGS(**ddgs_kwargs).text(query, max_results = max_results)
         out = []
         for r in (results or []):
             out.append({

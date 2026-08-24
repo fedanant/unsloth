@@ -74,8 +74,8 @@ pub fn classify_native_attachment_path(path: &Path) -> Result<ClassifiedPath, St
     if classified.path_type != NativePathType::File {
         return Err("Only files can be attached to a chat.".to_string());
     }
-    let supported = accepted_attachment_exts()
-        .any(|ext| has_extension(&classified.canonical_path, ext));
+    let supported =
+        accepted_attachment_exts().any(|ext| has_extension(&classified.canonical_path, ext));
     if !supported {
         return Err(format!(
             "Unsupported attachment type. Supported: {}",
@@ -636,9 +636,11 @@ mod tests {
             .duration_since(UNIX_EPOCH)
             .unwrap()
             .as_nanos();
-        scratch_root().join(format!("unsloth-native-policy-{name}-{}-{nanos}", std::process::id()))
+        scratch_root().join(format!(
+            "unsloth-native-policy-{name}-{}-{nanos}",
+            std::process::id()
+        ))
     }
-
 
     #[test]
     fn gguf_model_allows_validate_load_reveal() {

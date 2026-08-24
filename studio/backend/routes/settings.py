@@ -2555,6 +2555,9 @@ def get_debug_log(
 
 class WebSearchSettingsPayload(BaseModel):
     provider: Optional[str] = None
+    network_route: Optional[Literal["direct", "tor", "i2p"]] = None
+    tor_proxy_url: Optional[str] = None
+    i2p_proxy_url: Optional[str] = None
     brave_api_key: Optional[str] = None
     brave_endpoint: Optional[str] = None
     searxng_url: Optional[str] = None
@@ -2572,6 +2575,9 @@ class WebSearchSettingsPayload(BaseModel):
 
 class WebSearchSettingsResponse(BaseModel):
     provider: str
+    network_route: Literal["direct", "tor", "i2p"] = "direct"
+    tor_proxy_url: str = "socks5h://127.0.0.1:9050"
+    i2p_proxy_url: str = "http://127.0.0.1:4444"
     brave_api_key: str = ""
     brave_api_key_masked: str = ""
     has_brave_api_key: bool = False
@@ -2601,6 +2607,9 @@ class WebSearchSettingsResponse(BaseModel):
 
 class WebSearchTestRequest(BaseModel):
     provider: Optional[str] = None
+    network_route: Optional[Literal["direct", "tor", "i2p"]] = None
+    tor_proxy_url: Optional[str] = None
+    i2p_proxy_url: Optional[str] = None
     brave_api_key: Optional[str] = None
     brave_endpoint: Optional[str] = None
     searxng_url: Optional[str] = None
@@ -2655,4 +2664,3 @@ def test_web_search_config(
     query = data.pop("query", "Unsloth AI") or "Unsloth AI"
     result = test_web_search_engine(data, query = query)
     return WebSearchTestResponse(**result)
-

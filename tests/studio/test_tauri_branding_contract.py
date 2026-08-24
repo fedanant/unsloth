@@ -62,6 +62,15 @@ def test_desktop_display_name_and_compatibility_ids() -> None:
     assert 'name = "unsloth-studio"' in read(TAURI / "Cargo.toml")
 
 
+def test_fork_release_build_keeps_renderer_update_links_on_the_fork() -> None:
+    workflow = read(REPO / ".github/workflows/release-desktop.yml")
+    hook = read(FRONTEND / "src/hooks/use-tauri-update.ts")
+
+    assert "VITE_UNSLOTH_DESKTOP_RELEASE_REPOSITORY: ${{ github.repository }}" in workflow
+    assert "import.meta.env.VITE_UNSLOTH_DESKTOP_RELEASE_REPOSITORY" in hook
+    assert "`https://github.com/${releaseRepository}/releases/tag/`" in hook
+
+
 def test_desktop_package_transitions_preserve_legacy_installs() -> None:
     config = json.loads(read(TAURI / "tauri.conf.json"))
     deb = config["bundle"]["linux"]["deb"]

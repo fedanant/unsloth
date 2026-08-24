@@ -1105,10 +1105,13 @@ export const en = {
         description:
           "Configure search engines and web servers used by the Search tool in chat.",
         webSearchKeywords:
-          "web search engine brave searxng tavily google bing duckduckgo web server api query",
+          "web search engine brave searxng tavily google bing duckduckgo web server api query tor i2p proxy socks",
         engineLabel: "Search engine provider",
         engineDescription:
           "Select the search provider or server used for live web search.",
+        networkLabel: "Network route",
+        networkDescription:
+          "Route both search requests and fetched result pages directly, through Tor, or through an I2P clearnet outproxy. Proxy modes fail closed.",
         optionalSecret: "Optional API key or secret",
         loadError: "Failed to load web search settings.",
         saveSuccess: "Web search settings saved.",
@@ -1138,6 +1141,21 @@ export const en = {
           bingDesc: "Microsoft Azure Bing Web Search API.",
           custom: "Custom Web Server",
           customDesc: "Custom web search API endpoint or proxy server.",
+        },
+        network: {
+          direct: "Direct / system network",
+          tor: "Tor",
+          i2p: "I2P outproxy",
+        },
+        tor: {
+          proxyLabel: "Tor SOCKS proxy",
+          proxyDescription:
+            "SOCKS5h endpoint used for remote DNS and all web-search traffic. Tor daemon usually uses port 9050; Tor Browser commonly uses 9150.",
+        },
+        i2p: {
+          proxyLabel: "I2P HTTP proxy",
+          proxyDescription:
+            "I2P router HTTP proxy with a working clearnet outproxy. Clearnet exits are volunteer-run and may be unavailable.",
         },
         brave: {
           apiKeyLabel: "Brave API key",

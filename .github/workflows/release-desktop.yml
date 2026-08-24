@@ -84,6 +84,7 @@ jobs:
         shell: bash
         env:
           INPUT_STUDIO_VERSION: ${{ inputs.studio_version }}
+          RELEASE_REPOSITORY: ${{ github.repository }}
           # Reading releases unauthenticated spends a quota shared by every runner.
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -95,8 +96,11 @@ jobs:
           import sys
           import urllib.request
 
-          RELEASES_API_URL = (
-              'https://api.github.com/repos/unslothai/unsloth/releases?per_page=30'
+          release_repository = os.environ['RELEASE_REPOSITORY'].strip()
+          if not re.fullmatch(r'[0-9A-Za-z_.-]+/[0-9A-Za-z_.-]+', release_repository):
+              sys.exit(f'Invalid GitHub release repository: {release_repository!r}')
+          releases_api_url = (
+              f'https://api.github.com/repos/{release_repository}/releases?per_page=30'
           )
 
           studio_version = os.environ['INPUT_STUDIO_VERSION'].strip()
@@ -162,7 +166,7 @@ jobs:
               # Not /releases/latest: an llama.cpp prebuilt can hold that slot
               # and ships no manifest, so the read would 404 and skip this check.
               studio = [
-                  release for release in fetch(RELEASES_API_URL)
+                  release for release in fetch(releases_api_url)
                   if not release['draft'] and semver_tag.fullmatch(release['tag_name'])
               ]
               studio.sort(key = lambda release: release['published_at'], reverse = True)
@@ -394,8 +398,8 @@ jobs:
                   sys.exit(f'Could not download {filename} from PyPI ({last_error})')
           PY
 
-          if [ "$GITHUB_REPOSITORY" = "wasimysaid/unsloth" ]; then
-            echo "Fork-only updater A/B build: skipping the upstream PyPI-to-Studio release stamp check."
+          if [ "$GITHUB_REPOSITORY" != "unslothai/unsloth" ]; then
+            echo "Fork release: verified unsloth==$PYPI_VERSION exists; skipping the upstream-only PyPI-to-Studio release stamp check."
           elif [ -f scripts/stamp_studio_release.py ]; then
             mapfile -t dists < <(find "$RUNNER_TEMP/pypi-unsloth-dist" -type f \( -name '*.whl' -o -name '*.tar.gz' \) | sort)
             if [ "${#dists[@]}" -eq 0 ]; then
@@ -530,6 +534,13 @@ jobs:
       # Compiled in by preflight/version.rs. Without it the app only knows the
       # floor, so a shared venv left by the CLI installer is never upgraded again.
       UNSLOTH_DESKTOP_BACKEND_VERSION: ${{ needs.prepare-version.outputs.pypi_version }}
+      # Compile every release link and manual updater request against the same
+      # repository that owns the release assets. The checked-in default remains
+      # upstream for local/dev builds.
+      UNSLOTH_DESKTOP_RELEASE_REPOSITORY: ${{ github.repository }}
+      # The native command is the source of truth, but the renderer also needs a
+      # fork-local fail-safe URL if invoking that command fails during startup.
+      VITE_UNSLOTH_DESKTOP_RELEASE_REPOSITORY: ${{ github.repository }}
 
     steps:
       # harden-runner in audit mode: surfaces every egress destination in
@@ -597,13 +608,71 @@ jobs:
             exit 1
           fi
 
+      - name: Configure desktop release repository
+        shell: bash
+        env:
+          TAURI_UPDATER_PUBLIC_KEY: ${{ vars.TAURI_UPDATER_PUBLIC_KEY }}
+        run: |
+          node <<'JS'
+          const { readFileSync, writeFileSync } = require('node:fs');
+
+          const upstream = 'unslothai/unsloth';
+          const repository = process.env.UNSLOTH_DESKTOP_RELEASE_REPOSITORY?.trim();
+          if (!repository || !/^[0-9A-Za-z_.-]+\/[0-9A-Za-z_.-]+$/.test(repository)) {
+            throw new Error('Invalid UNSLOTH_DESKTOP_RELEASE_REPOSITORY: ' + repository);
+          }
+
+          const configPath = 'studio/src-tauri/tauri.conf.json';
+          const config = JSON.parse(readFileSync(configPath, 'utf8'));
+          const updater = config.plugins?.updater;
+          if (!updater) throw new Error('tauri.conf.json is missing plugins.updater');
+          updater.endpoints = [
+            `https://github.com/${repository}/releases/latest/download/latest.json`,
+          ];
+
+          if (repository !== upstream) {
+            const publicKey = process.env.TAURI_UPDATER_PUBLIC_KEY?.trim();
+            if (!publicKey) {
+              throw new Error(
+                'Fork releases require the TAURI_UPDATER_PUBLIC_KEY Actions variable',
+              );
+            }
+            updater.pubkey = publicKey;
+          }
+          writeFileSync(configPath, JSON.stringify(config, null, 2) + '\n');
+
+          // GitHub forks do not inherit the upstream Azure certificate. Removing
+          // the build-time sign command produces an unsigned Windows installer;
+          // updater artifacts still receive the fork's own Tauri signature.
+          if (repository !== upstream) {
+            const windowsPath = 'studio/src-tauri/tauri.windows.conf.json';
+            const windows = JSON.parse(readFileSync(windowsPath, 'utf8'));
+            if (windows.bundle?.windows) delete windows.bundle.windows.signCommand;
+            writeFileSync(windowsPath, JSON.stringify(windows, null, 2) + '\n');
+          }
+          JS
+
+      - name: Check updater signing credentials
+        shell: bash
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+        run: |
+          if [ -z "${TAURI_SIGNING_PRIVATE_KEY:-}" ]; then
+            echo "Missing TAURI_SIGNING_PRIVATE_KEY; updater artifacts cannot be signed." >&2
+            exit 1
+          fi
+
       - name: Verify desktop updater and Linux package config
         shell: bash
+        env:
+          TAURI_UPDATER_PUBLIC_KEY: ${{ vars.TAURI_UPDATER_PUBLIC_KEY }}
         run: |
           node <<'JS'
           const { readFileSync } = require('node:fs');
 
-          const expected = 'https://github.com/unslothai/unsloth/releases/latest/download/latest.json';
+          const upstream = 'unslothai/unsloth';
+          const repository = process.env.UNSLOTH_DESKTOP_RELEASE_REPOSITORY;
+          const expected = `https://github.com/${repository}/releases/latest/download/latest.json`;
           const config = JSON.parse(readFileSync('studio/src-tauri/tauri.conf.json', 'utf8'));
           const endpoints = config.plugins?.updater?.endpoints;
           if (!Array.isArray(endpoints) || endpoints.length !== 1) {
@@ -614,6 +683,18 @@ jobs:
           }
           if (!endpoints[0].includes('/releases/latest/download/latest.json')) {
             throw new Error('Desktop updater endpoint must use repo-wide /releases/latest/ discovery');
+          }
+          if (repository !== upstream && config.plugins?.updater?.pubkey !== process.env.TAURI_UPDATER_PUBLIC_KEY?.trim()) {
+            throw new Error('Fork updater public key was not embedded in tauri.conf.json');
+          }
+
+          const windows = JSON.parse(readFileSync('studio/src-tauri/tauri.windows.conf.json', 'utf8'));
+          const signCommand = windows.bundle?.windows?.signCommand;
+          if (repository === upstream && !signCommand) {
+            throw new Error('Upstream Windows releases must retain the Trusted Signing command');
+          }
+          if (repository !== upstream && signCommand) {
+            throw new Error('Fork Windows releases must not invoke upstream Trusted Signing');
           }
 
           const targets = config.bundle?.targets;
@@ -778,7 +859,7 @@ jobs:
 
       # ── macOS: fail before the build if notarization cannot run ──
       - name: Check Apple notarization credentials
-        if: matrix.platform == 'macos-latest'
+        if: matrix.platform == 'macos-latest' && github.repository == 'unslothai/unsloth'
         shell: bash
         env:
           APPLE_ID: ${{ secrets.APPLE_ID }}
@@ -799,7 +880,7 @@ jobs:
 
       # ── macOS: import signing certificate ──
       - name: Import Apple certificate
-        if: matrix.platform == 'macos-latest'
+        if: matrix.platform == 'macos-latest' && github.repository == 'unslothai/unsloth'
         env:
           APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
           APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
@@ -830,7 +911,7 @@ jobs:
       # toolchain below, and faster than the cache it replaces. Bump the URL and
       # the digest together when moving off 0.10.0.
       - name: Install trusted-signing-cli
-        if: matrix.platform == 'windows-latest'
+        if: matrix.platform == 'windows-latest' && github.repository == 'unslothai/unsloth'
         # Explicit, like every other Windows step here. The retry parameters
         # below are PowerShell 6+ only, so under 5.1 the download fails with "A
         # parameter cannot be found that matches parameter name
@@ -870,7 +951,7 @@ jobs:
       # surfaced later, inside the Tauri bundling step, as a signing error with
       # no obvious cause.
       - name: Verify trusted-signing-cli
-        if: matrix.platform == 'windows-latest'
+        if: matrix.platform == 'windows-latest' && github.repository == 'unslothai/unsloth'
         shell: pwsh
         run: |
           $ErrorActionPreference = "Stop"
@@ -963,14 +1044,7 @@ jobs:
         uses: tauri-apps/tauri-action@84b9d35b5fc46c1e45415bdb6144030364f7ebc5  # v0.6.2
         env:
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
-          # The signing key is not password protected, and no secret of this name
-          # exists, so this expression has always resolved to the empty string.
-          # Stated literally rather than left pointing at a secret that is not
-          # there: the value is unchanged, but it no longer reads as configuration
-          # someone forgot to set. Empty is not the same as unset here -- tauri
-          # prompts for a password when the variable is absent, which would hang
-          # the job, so the line stays.
-          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ''
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
           APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
@@ -988,7 +1062,7 @@ jobs:
       # outright offline. Close that gap here and fail the release if any part
       # of it does not hold.
       - name: Notarize final macOS disk image
-        if: matrix.platform == 'macos-latest'
+        if: matrix.platform == 'macos-latest' && github.repository == 'unslothai/unsloth'
         shell: bash
         # `--timeout` below caps the polling, but not the upload that precedes
         # it. Without a step-level backstop a stuck Notary service would burn
@@ -1105,7 +1179,7 @@ jobs:
       # runs it first. Sign before the build packs it in; the signature is an
       # appended comment block, so the repo copy for `irm ... | iex` is unaffected.
       - name: Sign the bundled install script
-        if: matrix.platform == 'windows-latest'
+        if: matrix.platform == 'windows-latest' && github.repository == 'unslothai/unsloth'
         shell: pwsh
         env:
           AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
@@ -1127,14 +1201,7 @@ jobs:
         uses: tauri-apps/tauri-action@84b9d35b5fc46c1e45415bdb6144030364f7ebc5  # v0.6.2
         env:
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
-          # The signing key is not password protected, and no secret of this name
-          # exists, so this expression has always resolved to the empty string.
-          # Stated literally rather than left pointing at a secret that is not
-          # there: the value is unchanged, but it no longer reads as configuration
-          # someone forgot to set. Empty is not the same as unset here -- tauri
-          # prompts for a password when the variable is absent, which would hang
-          # the job, so the line stays.
-          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ''
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
           AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
           AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
           AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
@@ -1407,7 +1474,7 @@ jobs:
       # ── Windows: every executable in the bundle must be signed ──
       # NSIS runs its plugin DLLs from $PLUGINSDIR; signing the installer misses them.
       - name: Verify every executable in the Windows bundles is signed
-        if: matrix.platform == 'windows-latest'
+        if: matrix.platform == 'windows-latest' && github.repository == 'unslothai/unsloth'
         shell: pwsh
         env:
           ARTIFACT_PATHS: ${{ steps.build_windows.outputs.artifactPaths }}
@@ -1421,7 +1488,7 @@ jobs:
       # The WDSI portal is a web form with no API, so this cannot be automated,
       # but pre-filling the lookups makes submitting a build take seconds.
       - name: Prepare Microsoft submission packet
-        if: (success() || failure()) && matrix.platform == 'windows-latest' && steps.build_windows.outcome == 'success'
+        if: (success() || failure()) && matrix.platform == 'windows-latest' && github.repository == 'unslothai/unsloth' && steps.build_windows.outcome == 'success'
         shell: pwsh
         env:
           ARTIFACT_PATHS: ${{ steps.build_windows.outputs.artifactPaths }}

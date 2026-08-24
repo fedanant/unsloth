@@ -21,6 +21,7 @@ from fastapi.testclient import TestClient
 
 import routes.settings as settings_routes
 from utils.web_search_settings import (
+    get_web_search_proxy_url,
     get_web_search_settings,
     update_web_search_settings,
     execute_engine_search_raw,
@@ -67,6 +68,162 @@ def test_get_default_settings(client):
     assert data["provider"] == "duckduckgo"
     assert data["has_brave_api_key"] is False
     assert data["brave_endpoint"] == "https://api.search.brave.com/res/v1/web/search"
+    assert data["network_route"] == "direct"
+    assert data["tor_proxy_url"] == "socks5h://127.0.0.1:9050"
+    assert data["i2p_proxy_url"] == "http://127.0.0.1:4444"
+
+
+def test_update_network_route_settings(client):
+    res = client.put(
+        "/api/settings/web-search",
+        json={
+            "network_route": "tor",
+            "tor_proxy_url": "socks5h://127.0.0.1:9150",
+        },
+    )
+    assert res.status_code == 200
+    data = res.json()
+    assert data["network_route"] == "tor"
+    assert data["tor_proxy_url"] == "socks5h://127.0.0.1:9150"
+
+
+@pytest.mark.parametrize(
+    "config,expected",
+    [
+        ({"network_route": "direct"}, None),
+        (
+            {"network_route": "tor", "tor_proxy_url": "socks5h://127.0.0.1:9050"},
+            "socks5h://127.0.0.1:9050",
+        ),
+        (
+            {"network_route": "i2p", "i2p_proxy_url": "http://127.0.0.1:4444"},
+            "http://127.0.0.1:4444",
+        ),
+    ],
+)
+def test_get_web_search_proxy_url(config, expected):
+    assert get_web_search_proxy_url(config) == expected
+
+
+@pytest.mark.parametrize(
+    "config,error",
+    [
+        ({"network_route": "tor", "tor_proxy_url": "socks5://127.0.0.1:9050"}, "socks5h"),
+        ({"network_route": "tor", "tor_proxy_url": ""}, "not configured"),
+        ({"network_route": "i2p", "i2p_proxy_url": "socks5h://127.0.0.1:4447"}, "http"),
+        ({"network_route": "unknown"}, "Unknown"),
+    ],
+)
+def test_get_web_search_proxy_url_rejects_unsafe_or_invalid_routes(config, error):
+    with pytest.raises(ValueError, match=error):
+        get_web_search_proxy_url(config)
+
+
+def test_duckduckgo_receives_explicit_tor_proxy(monkeypatch):
+    captured = {}
+
+    class FakeDDGS:
+        def __init__(self, **kwargs):
+            captured.update(kwargs)
+
+        def text(self, query, max_results):
+            return [{"title": "Result", "href": "https://example.com", "body": query}]
+
+    fake_module = _types.ModuleType("ddgs")
+    fake_module.DDGS = FakeDDGS
+    monkeypatch.setitem(sys.modules, "ddgs", fake_module)
+
+    results = execute_engine_search_raw(
+        "private query",
+        provider="duckduckgo",
+        config={
+            "network_route": "tor",
+            "tor_proxy_url": "socks5h://127.0.0.1:9050",
+        },
+        timeout=7,
+    )
+
+    assert captured == {"timeout": 7, "proxy": "socks5h://127.0.0.1:9050"}
+    assert results[0]["url"] == "https://example.com"
+
+
+def test_http_search_client_uses_explicit_proxy_and_ignores_environment(monkeypatch):
+    from utils import web_search_settings
+
+    captured = {}
+
+    class FakeResponse:
+        def raise_for_status(self):
+            return None
+
+        def json(self):
+            return {"web": {"results": []}}
+
+    class FakeClient:
+        def __init__(self, **kwargs):
+            captured.update(kwargs)
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, exc_type, exc, tb):
+            return False
+
+        def get(self, *args, **kwargs):
+            return FakeResponse()
+
+    monkeypatch.setattr(web_search_settings.httpx, "Client", FakeClient)
+    execute_engine_search_raw(
+        "query",
+        provider="brave",
+        config={
+            "network_route": "tor",
+            "tor_proxy_url": "socks5h://127.0.0.1:9050",
+            "brave_api_key": "test-key",
+        },
+        timeout=11,
+    )
+
+    assert captured["proxy"] == "socks5h://127.0.0.1:9050"
+    assert captured["trust_env"] is False
+    assert captured["follow_redirects"] is True
+
+
+def test_provider_fallback_keeps_selected_privacy_route(monkeypatch):
+    import core.inference.tools as tools
+    from utils import web_search_settings
+
+    settings = {
+        "provider": "brave",
+        "network_route": "tor",
+        "tor_proxy_url": "socks5h://127.0.0.1:9050",
+    }
+    calls = []
+
+    def fake_execute(query, provider, config, max_results=5, timeout=20):
+        calls.append((provider, dict(config)))
+        if provider == "brave":
+            raise RuntimeError("provider unavailable")
+        return [
+            {
+                "title": "Fallback result",
+                "url": "https://example.com",
+                "snippet": "still proxied",
+            }
+        ]
+
+    monkeypatch.setattr(
+        web_search_settings,
+        "get_web_search_settings",
+        lambda mask_secrets=False: dict(settings),
+    )
+    monkeypatch.setattr(web_search_settings, "execute_engine_search_raw", fake_execute)
+
+    result = tools._web_search("query", max_results=1, timeout=5)
+
+    assert "Fallback result" in result
+    assert [provider for provider, _config in calls] == ["brave", "duckduckgo"]
+    assert all(config["network_route"] == "tor" for _provider, config in calls)
 
 
 def test_update_brave_settings(client):

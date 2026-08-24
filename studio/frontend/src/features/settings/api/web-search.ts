@@ -12,8 +12,13 @@ export type WebSearchProviderType =
   | "bing"
   | "custom";
 
+export type WebSearchNetworkRoute = "direct" | "tor" | "i2p";
+
 export interface WebSearchSettings {
   provider: WebSearchProviderType;
+  network_route: WebSearchNetworkRoute;
+  tor_proxy_url?: string;
+  i2p_proxy_url?: string;
   brave_api_key?: string;
   brave_api_key_masked?: string;
   has_brave_api_key?: boolean;

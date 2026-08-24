@@ -58,7 +58,9 @@ WORKFLOW = REPO / ".github" / "workflows" / "release-desktop.yml"
 RUNNER_PREPEND = "$ErrorActionPreference = 'stop'"
 RUNNER_APPEND = r"if ((Test-Path -LiteralPath variable:\LASTEXITCODE)) { exit $LASTEXITCODE }"
 
-WINDOWS_GUARD = "matrix.platform == 'windows-latest'"
+WINDOWS_GUARD = (
+    "matrix.platform == 'windows-latest' && github.repository == 'unslothai/unsloth'"
+)
 
 
 # ── the PR under test ────────────────────────────────────────────────────────

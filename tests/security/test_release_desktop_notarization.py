@@ -150,7 +150,10 @@ def _command_names(commands):
 def test_notarization_step_runs_after_the_macos_build_and_before_staging():
     workflow = _workflow()
     step = _step(workflow, "Notarize final macOS disk image")
-    assert step["if"] == "matrix.platform == 'macos-latest'"
+    assert step["if"] == (
+        "matrix.platform == 'macos-latest' "
+        "&& github.repository == 'unslothai/unsloth'"
+    )
     assert step["env"]["ARTIFACT_PATHS"] == "${{ steps.build_macos.outputs.artifactPaths }}"
     # notarytool's own --timeout only caps the polling, so the step still needs
     # a backstop or a stalled upload holds the serial matrix until GitHub's 6h
@@ -165,7 +168,10 @@ def test_notarization_step_runs_after_the_macos_build_and_before_staging():
 def test_credentials_are_checked_before_the_expensive_build():
     workflow = _workflow()
     check = _step(workflow, "Check Apple notarization credentials")
-    assert check["if"] == "matrix.platform == 'macos-latest'"
+    assert check["if"] == (
+        "matrix.platform == 'macos-latest' "
+        "&& github.repository == 'unslothai/unsloth'"
+    )
 
     names = _step_names(workflow)
     assert names.index("Check Apple notarization credentials") < names.index("Build macOS app")

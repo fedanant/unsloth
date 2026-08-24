@@ -65,9 +65,18 @@ export interface RetainedUpdateFailure {
   logs: string[];
 }
 
+const UPSTREAM_RELEASE_REPOSITORY = "unslothai/unsloth";
+const configuredReleaseRepository =
+  import.meta.env.VITE_UNSLOTH_DESKTOP_RELEASE_REPOSITORY?.trim();
+const releaseRepository =
+  configuredReleaseRepository &&
+  /^[0-9A-Za-z_.-]+\/[0-9A-Za-z_.-]+$/.test(configuredReleaseRepository)
+    ? configuredReleaseRepository
+    : UPSTREAM_RELEASE_REPOSITORY;
+
 const DEFAULT_UPDATE_POLICY: DesktopUpdatePolicy = {
   mode: "in_app",
-  releasePageBaseUrl: "https://github.com/unslothai/unsloth/releases/tag/",
+  releasePageBaseUrl: `https://github.com/${releaseRepository}/releases/tag/`,
   releaseTagPrefix: "v",
 };
 

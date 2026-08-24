@@ -1120,10 +1120,13 @@ export const ru = {
         description:
           "Настройка поисковых систем и веб-серверов для инструмента поиска в чате.",
         webSearchKeywords:
-          "web search engine brave searxng tavily google bing duckduckgo веб сервер поиск поисковик движок",
+          "web search engine brave searxng tavily google bing duckduckgo веб сервер поиск поисковик движок tor i2p прокси socks",
         engineLabel: "Поисковый провайдер",
         engineDescription:
           "Выберите поисковый сервис или сервер для поиска информации в интернете.",
+        networkLabel: "Сетевой маршрут",
+        networkDescription:
+          "Направлять запросы поиска и загрузку найденных страниц напрямую, через Tor или clearnet-outproxy I2P. Прокси-режимы работают без прямого fallback.",
         optionalSecret: "Необязательный API ключ или пароль",
         loadError: "Не удалось загрузить настройки веб-поиска.",
         saveSuccess: "Настройки веб-поиска сохранены.",
@@ -1153,6 +1156,21 @@ export const ru = {
           bingDesc: "Microsoft Azure Bing Web Search API.",
           custom: "Пользовательский веб-сервер",
           customDesc: "Произвольный API эндпоинт или прокси-сервер веб-поиска.",
+        },
+        network: {
+          direct: "Прямое / системное подключение",
+          tor: "Tor",
+          i2p: "I2P outproxy",
+        },
+        tor: {
+          proxyLabel: "SOCKS-прокси Tor",
+          proxyDescription:
+            "SOCKS5h-адрес для удалённого DNS и всего трафика веб-поиска. Tor daemon обычно использует порт 9050, Tor Browser — 9150.",
+        },
+        i2p: {
+          proxyLabel: "HTTP-прокси I2P",
+          proxyDescription:
+            "HTTP-прокси роутера I2P с работающим clearnet-outproxy. Выходы поддерживаются добровольцами и могут быть недоступны.",
         },
         brave: {
           apiKeyLabel: "API ключ Brave",

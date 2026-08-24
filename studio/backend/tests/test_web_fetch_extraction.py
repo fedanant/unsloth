@@ -25,9 +25,160 @@ from core.inference._html_to_md import _is_aria_heading, html_to_markdown
 from core.inference.tools import (
     _fetch_page_text,
     _fetch_url_raw,
+    _fetch_url_raw_for_web_search,
+    _fetch_url_raw_via_proxy,
     _github_repo_readme_api_url,
     _looks_like_html,
 )
+
+
+def test_proxy_fetch_keeps_target_dns_at_proxy_and_ignores_environment(monkeypatch):
+    import httpx
+    import core.inference.tools as tools_mod
+
+    captured = {"urls": []}
+
+    class FakeResponse:
+        status_code = 200
+        reason_phrase = "OK"
+        headers = {"Content-Type": "text/plain; charset=utf-8"}
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, exc_type, exc, tb):
+            return False
+
+        def iter_bytes(self, chunk_size=65536):
+            yield b"proxied body"
+
+    class FakeClient:
+        def __init__(self, **kwargs):
+            captured["client"] = kwargs
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, exc_type, exc, tb):
+            return False
+
+        def stream(self, method, url, **kwargs):
+            captured["urls"].append(url)
+            return FakeResponse()
+
+    monkeypatch.setattr(httpx, "Client", FakeClient)
+    monkeypatch.setattr(
+        tools_mod,
+        "_validate_and_resolve_host",
+        lambda *args: (_ for _ in ()).throw(AssertionError("target DNS must stay at proxy")),
+    )
+
+    err, body, content_type = _fetch_url_raw_via_proxy(
+        "https://example.com/page",
+        proxy_url="socks5h://127.0.0.1:9050",
+        timeout=5,
+    )
+
+    assert err is None
+    assert body == "proxied body"
+    assert content_type == "text/plain"
+    assert captured["urls"] == ["https://example.com/page"]
+    assert captured["client"]["proxy"] == "socks5h://127.0.0.1:9050"
+    assert captured["client"]["trust_env"] is False
+
+
+def test_proxy_fetch_blocks_redirect_to_private_address(monkeypatch):
+    import httpx
+
+    captured = []
+
+    class RedirectResponse:
+        status_code = 302
+        reason_phrase = "Found"
+        headers = {"Location": "http://127.0.0.1/admin"}
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, exc_type, exc, tb):
+            return False
+
+    class FakeClient:
+        def __init__(self, **kwargs):
+            pass
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, exc_type, exc, tb):
+            return False
+
+        def stream(self, method, url, **kwargs):
+            captured.append(url)
+            return RedirectResponse()
+
+    monkeypatch.setattr(httpx, "Client", FakeClient)
+    err, body, _content_type = _fetch_url_raw_via_proxy(
+        "https://example.com/start",
+        proxy_url="socks5h://127.0.0.1:9050",
+    )
+
+    assert err == "Blocked: refusing to fetch non-public address 127.0.0.1."
+    assert body == ""
+    assert captured == ["https://example.com/start"]
+
+
+@pytest.mark.parametrize(
+    "url",
+    [
+        "http://localhost/admin",
+        "http://printer.local/status",
+        "http://intranet/status",
+    ],
+)
+def test_proxy_fetch_blocks_local_names_before_opening_proxy(monkeypatch, url):
+    import httpx
+
+    monkeypatch.setattr(
+        httpx,
+        "Client",
+        lambda **kwargs: (_ for _ in ()).throw(
+            AssertionError("blocked local target must not reach the proxy")
+        ),
+    )
+
+    err, body, content_type = _fetch_url_raw_via_proxy(
+        url,
+        proxy_url="socks5h://127.0.0.1:9050",
+    )
+
+    assert err.startswith("Blocked: refusing to fetch local hostname")
+    assert body == ""
+    assert content_type == ""
+
+
+def test_invalid_privacy_route_fails_closed_without_direct_fetch(monkeypatch):
+    import core.inference.tools as tools_mod
+    from utils import web_search_settings
+
+    monkeypatch.setattr(
+        web_search_settings,
+        "get_web_search_settings",
+        lambda mask_secrets=False: {"network_route": "tor", "tor_proxy_url": ""},
+    )
+    monkeypatch.setattr(
+        tools_mod,
+        "_fetch_url_raw",
+        lambda *args, **kwargs: (_ for _ in ()).throw(
+            AssertionError("invalid privacy route must never fall back to direct fetch")
+        ),
+    )
+
+    err, body, content_type = _fetch_url_raw_for_web_search("https://example.com")
+
+    assert "invalid web search proxy configuration" in err
+    assert body == ""
+    assert content_type == ""
 
 
 # ── Fixtures: snapshot of GitHub repo page fragments ─────────────

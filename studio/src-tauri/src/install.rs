@@ -1406,11 +1406,8 @@ mod tests {
 
         // A temp file has no Zone.Identifier, so RemoteSigned admits it unsigned.
         // The path spelling and the flag set are what is under test, not signing.
-        let dir = std::env::temp_dir().join(format!(
-            "unsloth-launch-{}-{}",
-            std::process::id(),
-            line!()
-        ));
+        let dir =
+            std::env::temp_dir().join(format!("unsloth-launch-{}-{}", std::process::id(), line!()));
         fs::create_dir_all(&dir).expect("create temp dir");
         let script = dir.join("install.ps1");
         fs::write(&script, "Write-Output 'unsloth-launcher-ok'\r\n").expect("write script");
@@ -1523,10 +1520,19 @@ mod tests {
         }
         let message = context.message(1);
         // The raw id survives: diagnostics and vendor submissions need it.
-        assert!(message.contains("ScriptContainedMaliciousContent"), "{message}");
+        assert!(
+            message.contains("ScriptContainedMaliciousContent"),
+            "{message}"
+        );
         assert!(message.starts_with("Installation failed: "), "{message}");
-        assert!(message.contains("blocked the installer before it started"), "{message}");
-        assert!(message.contains("only diagnostic logs may have been written"), "{message}");
+        assert!(
+            message.contains("blocked the installer before it started"),
+            "{message}"
+        );
+        assert!(
+            message.contains("only diagnostic logs may have been written"),
+            "{message}"
+        );
         // We cannot know a verdict is wrong, so the text must not assert it.
         assert!(!message.contains("This is a false positive"), "{message}");
     }
@@ -1542,10 +1548,19 @@ mod tests {
             context.observe_stderr(line);
         }
         let message = context.message(1);
-        assert!(message.contains("ScriptContainedMaliciousContent"), "{message}");
-        assert!(message.contains("blocked part of the installer"), "{message}");
+        assert!(
+            message.contains("ScriptContainedMaliciousContent"),
+            "{message}"
+        );
+        assert!(
+            message.contains("blocked part of the installer"),
+            "{message}"
+        );
         assert!(!message.contains("no installation steps ran"), "{message}");
-        assert!(message.contains("some components may already be installed"), "{message}");
+        assert!(
+            message.contains("some components may already be installed"),
+            "{message}"
+        );
     }
 
     #[test]
@@ -1559,7 +1574,10 @@ mod tests {
         }
         context.observe_stdout("[TAURI:STEP] running unsloth studio setup...");
         let message = context.message(1);
-        assert!(message.contains("blocked part of the installer"), "{message}");
+        assert!(
+            message.contains("blocked part of the installer"),
+            "{message}"
+        );
         assert!(!message.contains("no installation steps ran"), "{message}");
     }
 
@@ -1577,7 +1595,10 @@ mod tests {
         // the twin of the same clear, arriving late on the other stream
         context.observe_stdout("[TAURI:ERROR_CLEAR] PyTorch recovered");
         let message = context.message(1);
-        assert!(message.contains("blocked part of the installer"), "{message}");
+        assert!(
+            message.contains("blocked part of the installer"),
+            "{message}"
+        );
     }
 
     #[test]
@@ -1597,7 +1618,10 @@ mod tests {
         context.observe_stdout("[TAURI:ERROR_CLEAR] install PyTorch recovered");
         context.observe_stdout("[TAURI:ERROR_CLEAR] install PyTorch recovered");
         let message = context.message(1);
-        assert!(message.contains("blocked part of the installer"), "{message}");
+        assert!(
+            message.contains("blocked part of the installer"),
+            "{message}"
+        );
     }
 
     #[test]
@@ -1615,7 +1639,10 @@ mod tests {
         context.observe_stdout("[TAURI:ERROR_CLEAR] step A recovered");
         context.observe_stdout("[TAURI:ERROR_CLEAR] step B recovered");
         let message = context.message(1);
-        assert!(message.contains("blocked part of the installer"), "{message}");
+        assert!(
+            message.contains("blocked part of the installer"),
+            "{message}"
+        );
     }
 
     #[test]
@@ -1668,7 +1695,11 @@ mod tests {
         for i in 0..(MAX_UNPAIRED_CLEARS * 4) {
             context.observe_stdout(&format!("[TAURI:ERROR_CLEAR] step {i} recovered"));
         }
-        assert!(context.unpaired_clears.len() <= MAX_UNPAIRED_CLEARS, "{}", context.unpaired_clears.len());
+        assert!(
+            context.unpaired_clears.len() <= MAX_UNPAIRED_CLEARS,
+            "{}",
+            context.unpaired_clears.len()
+        );
     }
 
     #[test]
@@ -1691,7 +1722,10 @@ mod tests {
         context.observe_stdout("[TAURI:STEP] installing PyTorch");
         context.observe_stderr("    + FullyQualifiedErrorId : ScriptHasAdminBlockedContent");
         let message = context.message(1);
-        assert!(message.contains("blocked part of the installer"), "{message}");
+        assert!(
+            message.contains("blocked part of the installer"),
+            "{message}"
+        );
         assert!(!message.contains("no installation steps ran"), "{message}");
     }
 
@@ -1713,7 +1747,10 @@ mod tests {
         let mut context = InstallFailureContext::default();
         context.observe_stderr("    + FullyQualifiedErrorId : ScriptHasAdminBlockedContent");
         let message = context.message(1);
-        assert!(message.contains("security policy blocked the installer"), "{message}");
+        assert!(
+            message.contains("security policy blocked the installer"),
+            "{message}"
+        );
         assert!(!message.contains("report it to your vendor"), "{message}");
     }
 

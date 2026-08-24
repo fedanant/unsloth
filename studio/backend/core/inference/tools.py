@@ -11558,6 +11558,251 @@ def _fetch_url_raw(
         return f"Failed to fetch URL: {e}", "", ""
 
 
+def _proxy_target_allowed(hostname: str) -> tuple[bool, str]:
+    """Reject explicit local/private destinations without resolving a hostname.
+
+    A privacy proxy must resolve ordinary hostnames itself; resolving here would
+    leak the destination through the host's DNS. Literal IP addresses and local
+    naming suffixes can still be rejected without a lookup.
+    """
+    import ipaddress
+
+    host = hostname.rstrip(".").lower()
+    if host == "localhost" or host.endswith(
+        (".localhost", ".local", ".lan", ".internal", ".home", ".home.arpa")
+    ):
+        return False, f"Blocked: refusing to fetch local hostname {hostname}."
+    try:
+        ip = ipaddress.ip_address(host)
+    except ValueError:
+        if "." not in host:
+            return False, f"Blocked: refusing to fetch local hostname {hostname}."
+        return True, ""
+    if (
+        not ip.is_global
+        or ip.is_private
+        or ip.is_loopback
+        or ip.is_link_local
+        or ip.is_multicast
+        or ip.is_reserved
+        or ip.is_unspecified
+    ):
+        return False, f"Blocked: refusing to fetch non-public address {ip}."
+    return True, ""
+
+
+def _fetch_url_raw_via_proxy(
+    url: str,
+    proxy_url: str,
+    timeout: int = 30,
+    extra_headers: dict | None = None,
+    deadline: float | None = None,
+    cancel_event = None,
+    website_policy: dict | None = None,
+) -> tuple[str | None, str, str]:
+    """Fetch through an explicit privacy proxy without local target DNS.
+
+    Redirects, response sizes, binary detection, PDFs, and the website policy
+    retain the direct fetcher's constraints. The proxy URL is explicit and
+    ``trust_env`` is disabled, so NO_PROXY cannot silently bypass Tor or I2P.
+    """
+    import httpx
+    from urllib.parse import urljoin, urlparse
+    from .web_access_policy import check_url_access
+
+    url = _normalize_url_scheme(url)
+    allowed, reason, canonical_host = check_url_access(url, website_policy)
+    if not allowed:
+        return reason, "", ""
+    target_ok, target_reason = _proxy_target_allowed(canonical_host)
+    if not target_ok:
+        return target_reason, "", ""
+
+    budget_error = _fetch_budget_exceeded(deadline, cancel_event)
+    if budget_error is not None:
+        return budget_error, "", ""
+
+    try:
+        ua = random.choice(_USER_AGENTS)
+        current_url = url
+        headers = {"User-Agent": ua}
+        if extra_headers:
+            headers.update(extra_headers)
+
+        client_timeout = _fetch_hop_timeout(timeout, deadline)
+        with httpx.Client(
+            proxy = proxy_url,
+            trust_env = False,
+            follow_redirects = False,
+            timeout = client_timeout,
+        ) as client:
+            for _hop in range(5):
+                budget_error = _fetch_budget_exceeded(deadline, cancel_event)
+                if budget_error is not None:
+                    return budget_error, "", ""
+
+                with client.stream(
+                    "GET",
+                    current_url,
+                    headers = headers,
+                    timeout = _fetch_hop_timeout(timeout, deadline),
+                ) as resp:
+                    if resp.status_code in (301, 302, 303, 307, 308):
+                        location = resp.headers.get("Location")
+                        if not location:
+                            return "Failed to fetch URL: redirect missing Location header.", "", ""
+                        current_url = urljoin(current_url, location)
+                        allowed, policy_reason, redirect_host = check_url_access(
+                            current_url,
+                            website_policy,
+                        )
+                        if not allowed:
+                            return policy_reason, "", ""
+                        target_ok, target_reason = _proxy_target_allowed(redirect_host)
+                        if not target_ok:
+                            return target_reason, "", ""
+                        continue
+                    if resp.status_code < 200 or resp.status_code >= 300:
+                        return (
+                            f"Failed to fetch URL: HTTP {resp.status_code} {resp.reason_phrase}",
+                            "",
+                            "",
+                        )
+
+                    raw_content_type = resp.headers.get("Content-Type", "")
+                    content_type = raw_content_type.split(";", 1)[0].strip().lower()
+                    declared_pdf = content_type == "application/pdf"
+                    initial_limit = (
+                        _MAX_PDF_FETCH_BYTES + 1 if declared_pdf else _MAX_FETCH_BYTES + 1
+                    )
+                    read_limit = initial_limit
+                    raw_buffer = bytearray()
+                    for chunk in resp.iter_bytes(chunk_size = 65536):
+                        budget_error = _fetch_budget_exceeded(deadline, cancel_event)
+                        if budget_error is not None:
+                            return budget_error, "", ""
+                        raw_buffer.extend(chunk)
+                        if len(raw_buffer) < read_limit:
+                            continue
+                        if not declared_pdf and _has_pdf_magic(raw_buffer):
+                            read_limit = _MAX_PDF_FETCH_BYTES + 1
+                            if len(raw_buffer) < read_limit:
+                                continue
+                        break
+                    raw_bytes = bytes(raw_buffer[:read_limit])
+                break
+            else:
+                return "Failed to fetch URL: too many redirects.", "", ""
+
+        is_pdf = declared_pdf or _has_pdf_magic(raw_bytes)
+        if not is_pdf and len(raw_bytes) > _MAX_FETCH_BYTES:
+            raw_bytes = raw_bytes[:_MAX_FETCH_BYTES]
+        if is_pdf:
+            if len(raw_bytes) > _MAX_PDF_FETCH_BYTES:
+                return (
+                    "(PDF content exceeds the download limit; not readable as text)",
+                    "",
+                    content_type,
+                )
+            budget_error = _fetch_budget_exceeded(deadline, cancel_event)
+            if budget_error is not None:
+                return budget_error, "", content_type
+            try:
+                pdf_text = _extract_pdf_text(raw_bytes)
+            except Exception as exc:
+                logger.debug("proxied web PDF text extraction failed (%s)", type(exc).__name__)
+                return "(PDF content could not be read as text)", "", content_type
+            budget_error = _fetch_budget_exceeded(deadline, cancel_event)
+            if budget_error is not None:
+                return budget_error, "", content_type
+            if not pdf_text:
+                pdf_text = "(PDF contains no extractable text)"
+            return None, pdf_text, "application/pdf"
+
+        if not _is_text_candidate_content_type(content_type):
+            match = re.match(r"[\w.+-]+/[\w.+-]+", content_type or "")
+            safe_type = match.group(0) if match else "unknown type"
+            return (
+                f"(non-text content: {safe_type}, {len(raw_bytes)} bytes; not readable as text)",
+                "",
+                content_type,
+            )
+        if _has_binary_magic(raw_bytes):
+            return (
+                f"(binary content, {len(raw_bytes)} bytes; not readable as text)",
+                "",
+                content_type,
+            )
+
+        charset_match = re.search(
+            r"(?:^|;)\s*charset\s*=\s*[\"']?([^;\"'\s]+)",
+            raw_content_type,
+            flags = re.IGNORECASE,
+        )
+        declared = charset_match.group(1) if charset_match else None
+        try:
+            declared_codec = codecs.lookup(declared).name if declared else None
+        except LookupError:
+            declared = None
+            declared_codec = None
+        bom_codec = next(
+            (codec for bom, codec in _UNICODE_BOM_CODECS if raw_bytes.startswith(bom)),
+            None,
+        )
+        raw_html = raw_bytes.decode(declared or bom_codec or "utf-8", errors = "replace")
+        if _looks_binary(raw_html):
+            alt = (
+                raw_bytes.decode("cp1252", "replace")
+                if declared_codec in (None, "iso8859-1")
+                and _has_single_byte_text_evidence(raw_bytes)
+                else None
+            )
+            if alt is not None and not _looks_binary(alt):
+                raw_html = alt
+            else:
+                return (
+                    f"(binary content, {len(raw_bytes)} bytes; not readable as text)",
+                    "",
+                    content_type,
+                )
+        return None, raw_html, content_type
+    except Exception as exc:
+        return f"Failed to fetch URL through configured proxy: {exc}", "", ""
+
+
+def _fetch_url_raw_for_web_search(
+    url: str,
+    timeout: int = 30,
+    extra_headers: dict | None = None,
+    deadline: float | None = None,
+    cancel_event = None,
+    website_policy: dict | None = None,
+) -> tuple[str | None, str, str]:
+    """Dispatch a web-search page fetch through its configured route."""
+    try:
+        from utils.web_search_settings import (
+            get_web_search_proxy_url,
+            get_web_search_settings,
+        )
+
+        settings = get_web_search_settings(mask_secrets = False)
+        proxy_url = get_web_search_proxy_url(settings)
+    except Exception as exc:
+        return f"Failed to fetch URL: invalid web search proxy configuration: {exc}", "", ""
+
+    kwargs = {
+        "timeout": timeout,
+        "extra_headers": extra_headers,
+        "deadline": deadline,
+        "cancel_event": cancel_event,
+    }
+    if website_policy is not None:
+        kwargs["website_policy"] = website_policy
+    if proxy_url:
+        return _fetch_url_raw_via_proxy(url, proxy_url = proxy_url, **kwargs)
+    return _fetch_url_raw(url, **kwargs)
+
+
 # Tags that, at the very START of a body, mark it as HTML. Excludes ambiguous
 # tags (<div>/<p>/<span>/<a>/<img>/<h1>..<h6>/<table>) that legitimately open
 # centered-logo or badge-layout Markdown READMEs and must stay Markdown.
@@ -11653,7 +11898,7 @@ def _fetch_page_text(
     policy_kwargs = {"website_policy": website_policy} if website_policy is not None else {}
     readme_api_url = _github_repo_readme_api_url(url)
     if readme_api_url:
-        err, body, _ctype = _fetch_url_raw(
+        err, body, _ctype = _fetch_url_raw_for_web_search(
             readme_api_url,
             timeout = timeout,
             extra_headers = {
@@ -11683,7 +11928,7 @@ def _fetch_page_text(
                     max_chars,
                 )
 
-    err, body, content_type = _fetch_url_raw(
+    err, body, content_type = _fetch_url_raw_for_web_search(
         url,
         timeout = timeout,
         deadline = deadline,
@@ -11794,16 +12039,16 @@ def _web_search(
                     provider,
                     exc,
                 )
-                from ddgs import DDGS
-                ddgs_results = DDGS(timeout = timeout).text(effective_query, max_results = wanted)
-                raw_results = [
-                    {
-                        "title": " ".join(str(r.get("title") or "").split()),
-                        "url": str(r.get("href") or "").strip(),
-                        "snippet": " ".join(str(r.get("body") or "").split()),
-                    }
-                    for r in (ddgs_results or [])
-                ]
+                # Re-enter the shared executor so an explicit Tor/I2P route is
+                # preserved. Constructing DDGS directly here used to bypass the
+                # configured privacy proxy during provider fallback.
+                raw_results = execute_engine_search_raw(
+                    effective_query,
+                    provider = "duckduckgo",
+                    config = settings,
+                    max_results = wanted,
+                    timeout = timeout or 20,
+                )
             else:
                 raise
 

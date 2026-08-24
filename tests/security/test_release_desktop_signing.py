@@ -123,4 +123,7 @@ def test_every_failure_says_what_it_was():
 
 
 def test_the_check_still_only_runs_on_windows():
-    assert _verify_step()["if"] == "matrix.platform == 'windows-latest'"
+    assert _verify_step()["if"] == (
+        "matrix.platform == 'windows-latest' "
+        "&& github.repository == 'unslothai/unsloth'"
+    )

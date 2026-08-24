@@ -11,12 +11,13 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Spinner } from "@/components/ui/spinner";
-import { useT } from "@/i18n";
+import { type TranslationKey, useT } from "@/i18n";
 import { cn } from "@/lib/utils";
 import { Eye, EyeOff, Play } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 import {
+  type WebSearchNetworkRoute,
   type WebSearchProviderType,
   type WebSearchSettings,
   type WebSearchTestResult,
@@ -29,8 +30,8 @@ import { SettingsSection } from "./settings-section";
 
 const PROVIDER_OPTIONS: {
   id: WebSearchProviderType;
-  labelKey: string;
-  descriptionKey: string;
+  labelKey: TranslationKey;
+  descriptionKey: TranslationKey;
   badge?: string;
 }[] = [
   {
@@ -77,8 +78,32 @@ const PROVIDER_OPTIONS: {
   },
 ];
 
+const NETWORK_ROUTE_OPTIONS: {
+  id: WebSearchNetworkRoute;
+  labelKey: TranslationKey;
+  badge?: string;
+}[] = [
+  {
+    id: "direct",
+    labelKey: "settings.chat.webSearch.network.direct",
+  },
+  {
+    id: "tor",
+    labelKey: "settings.chat.webSearch.network.tor",
+    badge: "SOCKS5h",
+  },
+  {
+    id: "i2p",
+    labelKey: "settings.chat.webSearch.network.i2p",
+    badge: "Experimental",
+  },
+];
+
 const DEFAULT_SETTINGS: WebSearchSettings = {
   provider: "duckduckgo",
+  network_route: "direct",
+  tor_proxy_url: "socks5h://127.0.0.1:9050",
+  i2p_proxy_url: "http://127.0.0.1:4444",
   brave_api_key: "",
   brave_endpoint: "https://api.search.brave.com/res/v1/web/search",
   searxng_url: "",
@@ -142,6 +167,15 @@ export function WebSearchSettingsSection() {
     await saveUpdates({ provider });
   };
 
+  const handleNetworkRouteChange = async (
+    networkRoute: WebSearchNetworkRoute,
+  ) => {
+    const current = settings ?? DEFAULT_SETTINGS;
+    const next = { ...current, network_route: networkRoute };
+    setSettings(next);
+    await saveUpdates({ network_route: networkRoute });
+  };
+
   const runTest = async () => {
     const current = settings ?? DEFAULT_SETTINGS;
     setTesting(true);
@@ -192,6 +226,7 @@ export function WebSearchSettingsSection() {
 
   const currentSettings = settings ?? DEFAULT_SETTINGS;
   const activeProvider = currentSettings.provider || "duckduckgo";
+  const activeNetworkRoute = currentSettings.network_route || "direct";
 
   return (
     <SettingsSection
@@ -218,7 +253,7 @@ export function WebSearchSettingsSection() {
             {PROVIDER_OPTIONS.map((opt) => (
               <SelectItem key={opt.id} value={opt.id}>
                 <div className="flex items-center gap-2">
-                  <span>{t(opt.labelKey as any)}</span>
+                  <span>{t(opt.labelKey)}</span>
                   {opt.badge ? (
                     <span className="rounded bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground font-mono">
                       {opt.badge}
@@ -230,6 +265,85 @@ export function WebSearchSettingsSection() {
           </SelectContent>
         </Select>
       </SettingsRow>
+
+      <SettingsRow
+        label={t("settings.chat.webSearch.networkLabel")}
+        description={t("settings.chat.webSearch.networkDescription")}
+      >
+        <Select
+          value={activeNetworkRoute}
+          onValueChange={(val) =>
+            handleNetworkRouteChange(val as WebSearchNetworkRoute)
+          }
+        >
+          <SelectTrigger
+            className="w-64 max-w-full font-medium"
+            aria-label={t("settings.chat.webSearch.networkLabel")}
+          >
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {NETWORK_ROUTE_OPTIONS.map((opt) => (
+              <SelectItem key={opt.id} value={opt.id}>
+                <div className="flex items-center gap-2">
+                  <span>{t(opt.labelKey)}</span>
+                  {opt.badge ? (
+                    <span className="rounded bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground font-mono">
+                      {opt.badge}
+                    </span>
+                  ) : null}
+                </div>
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </SettingsRow>
+
+      {activeNetworkRoute === "tor" && (
+        <SettingsRow
+          label={t("settings.chat.webSearch.tor.proxyLabel")}
+          description={t("settings.chat.webSearch.tor.proxyDescription")}
+        >
+          <Input
+            type="text"
+            placeholder="socks5h://127.0.0.1:9050"
+            value={currentSettings.tor_proxy_url || ""}
+            onChange={(e) =>
+              setSettings({
+                ...currentSettings,
+                tor_proxy_url: e.target.value,
+              })
+            }
+            onBlur={() =>
+              saveUpdates({ tor_proxy_url: currentSettings.tor_proxy_url })
+            }
+            className="w-80 max-w-full font-mono text-xs"
+          />
+        </SettingsRow>
+      )}
+
+      {activeNetworkRoute === "i2p" && (
+        <SettingsRow
+          label={t("settings.chat.webSearch.i2p.proxyLabel")}
+          description={t("settings.chat.webSearch.i2p.proxyDescription")}
+        >
+          <Input
+            type="text"
+            placeholder="http://127.0.0.1:4444"
+            value={currentSettings.i2p_proxy_url || ""}
+            onChange={(e) =>
+              setSettings({
+                ...currentSettings,
+                i2p_proxy_url: e.target.value,
+              })
+            }
+            onBlur={() =>
+              saveUpdates({ i2p_proxy_url: currentSettings.i2p_proxy_url })
+            }
+            className="w-80 max-w-full font-mono text-xs"
+          />
+        </SettingsRow>
+      )}
 
       {/* Brave Search Settings */}
       {activeProvider === "brave" && (

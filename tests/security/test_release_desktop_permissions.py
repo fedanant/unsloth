@@ -27,6 +27,53 @@ def test_only_publish_job_can_write_repository_contents():
     assert write_jobs == ["publish-release"]
 
 
+def test_fork_releases_use_their_own_repository_and_updater_key():
+    workflow = _workflow()
+    prepare = workflow["jobs"]["prepare-version"]
+    build = workflow["jobs"]["build"]
+
+    validate = next(
+        step for step in prepare["steps"] if step.get("name") == "Validate release versions"
+    )
+    assert validate["env"]["RELEASE_REPOSITORY"] == "${{ github.repository }}"
+    assert "repos/{release_repository}/releases" in validate["run"]
+    assert "repos/unslothai/unsloth/releases" not in validate["run"]
+
+    verify_backend = next(
+        step
+        for step in prepare["steps"]
+        if step.get("name") == "Verify PyPI package and Unsloth stamp"
+    )
+    assert '[ "$GITHUB_REPOSITORY" != "unslothai/unsloth" ]' in verify_backend["run"]
+    assert "skipping the upstream-only PyPI-to-Studio release stamp check" in (
+        verify_backend["run"]
+    )
+
+    assert build["env"]["UNSLOTH_DESKTOP_RELEASE_REPOSITORY"] == "${{ github.repository }}"
+    assert build["env"]["VITE_UNSLOTH_DESKTOP_RELEASE_REPOSITORY"] == (
+        "${{ github.repository }}"
+    )
+    configure = next(
+        step
+        for step in build["steps"]
+        if step.get("name") == "Configure desktop release repository"
+    )
+    assert configure["env"]["TAURI_UPDATER_PUBLIC_KEY"] == (
+        "${{ vars.TAURI_UPDATER_PUBLIC_KEY }}"
+    )
+    assert "github.com/${repository}/releases/latest/download/latest.json" in configure["run"]
+    assert "delete windows.bundle.windows.signCommand" in configure["run"]
+
+    credential_check = next(
+        step
+        for step in build["steps"]
+        if step.get("name") == "Check updater signing credentials"
+    )
+    assert credential_check["env"]["TAURI_SIGNING_PRIVATE_KEY"] == (
+        "${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}"
+    )
+
+
 def _poll_loop_body(script):
     """Return the body of the first live `while ...; do ... done` loop.
 

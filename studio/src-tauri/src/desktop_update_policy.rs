@@ -1,10 +1,26 @@
 use serde::Serialize;
 use std::collections::HashMap;
 
-const DESKTOP_RELEASE_PAGE_BASE_URL: &str = "https://github.com/unslothai/unsloth/releases/tag/";
+const DEFAULT_DESKTOP_RELEASE_REPOSITORY: &str = "unslothai/unsloth";
 const DESKTOP_RELEASE_TAG_PREFIX: &str = "v";
-const DESKTOP_UPDATER_MANIFEST_URL: &str =
-    "https://github.com/unslothai/unsloth/releases/latest/download/latest.json";
+
+fn desktop_release_repository() -> &'static str {
+    option_env!("UNSLOTH_DESKTOP_RELEASE_REPOSITORY").unwrap_or(DEFAULT_DESKTOP_RELEASE_REPOSITORY)
+}
+
+fn desktop_release_page_base_url() -> String {
+    format!(
+        "https://github.com/{}/releases/tag/",
+        desktop_release_repository()
+    )
+}
+
+fn desktop_updater_manifest_url() -> String {
+    format!(
+        "https://github.com/{}/releases/latest/download/latest.json",
+        desktop_release_repository()
+    )
+}
 
 #[allow(dead_code)]
 #[derive(Debug, Serialize)]
@@ -18,7 +34,7 @@ pub(crate) enum DesktopUpdateMode {
 #[serde(rename_all = "camelCase")]
 pub(crate) struct DesktopUpdatePolicy {
     mode: DesktopUpdateMode,
-    release_page_base_url: &'static str,
+    release_page_base_url: String,
     release_tag_prefix: &'static str,
 }
 
@@ -55,7 +71,7 @@ struct ChannelPlatform {
 pub(crate) fn desktop_update_policy() -> DesktopUpdatePolicy {
     DesktopUpdatePolicy {
         mode: desktop_update_mode(),
-        release_page_base_url: DESKTOP_RELEASE_PAGE_BASE_URL,
+        release_page_base_url: desktop_release_page_base_url(),
         release_tag_prefix: DESKTOP_RELEASE_TAG_PREFIX,
     }
 }
@@ -71,7 +87,7 @@ pub(crate) async fn check_desktop_manual_update() -> Result<Option<ManualUpdateI
         .build()
         .map_err(|e| e.to_string())?;
     let response = client
-        .get(DESKTOP_UPDATER_MANIFEST_URL)
+        .get(desktop_updater_manifest_url())
         .send()
         .await
         .map_err(|error| {
@@ -121,7 +137,8 @@ fn validate_channel_metadata(
     }
 
     let expected_prefix = format!(
-        "https://github.com/unslothai/unsloth/releases/download/v{normalized_version}/"
+        "https://github.com/{}/releases/download/v{normalized_version}/",
+        desktop_release_repository()
     );
     for (platform, entry) in &metadata.platforms {
         if entry.url.trim().is_empty() {
@@ -446,32 +463,50 @@ mod tests {
 
     #[test]
     fn updater_policy_uses_normal_release_discovery_and_links() {
+        let repository = super::desktop_release_repository();
         assert_eq!(
-            super::DESKTOP_UPDATER_MANIFEST_URL,
-            "https://github.com/unslothai/unsloth/releases/latest/download/latest.json"
+            super::desktop_updater_manifest_url(),
+            format!("https://github.com/{repository}/releases/latest/download/latest.json")
+        );
+        assert_eq!(
+            super::desktop_release_page_base_url(),
+            format!("https://github.com/{repository}/releases/tag/")
         );
         assert_eq!(super::DESKTOP_RELEASE_TAG_PREFIX, "v");
-        let metadata = metadata_with_url(
-            "https://github.com/unslothai/unsloth/releases/download/v0.1.528-beta/app.AppImage",
-        );
+        let metadata = metadata_with_url(&format!(
+            "https://github.com/{repository}/releases/download/v0.1.528-beta/app.AppImage"
+        ));
         assert!(super::validate_channel_metadata(&metadata, "0.1.528-beta").is_ok());
     }
 
     #[test]
     fn updater_policy_rejects_moving_legacy_mismatched_and_foreign_asset_urls() {
+        let repository = super::desktop_release_repository();
+        let foreign_repository = if repository == "example/unsloth" {
+            "other/unsloth"
+        } else {
+            "example/unsloth"
+        };
         for url in [
-            "https://github.com/unslothai/unsloth/releases/latest/download/app.AppImage",
-            "https://github.com/unslothai/unsloth/releases/download/desktop-latest/app.AppImage",
-            "https://github.com/unslothai/unsloth/releases/download/desktop-v0.1.528-beta/app.AppImage",
-            "https://github.com/unslothai/unsloth/releases/download/v0.1.529-beta/app.AppImage",
-            "https://github.com/example/unsloth/releases/download/v0.1.528-beta/app.AppImage",
+            format!("https://github.com/{repository}/releases/latest/download/app.AppImage"),
+            format!(
+                "https://github.com/{repository}/releases/download/desktop-latest/app.AppImage"
+            ),
+            format!(
+                "https://github.com/{repository}/releases/download/desktop-v0.1.528-beta/app.AppImage"
+            ),
+            format!(
+                "https://github.com/{repository}/releases/download/v0.1.529-beta/app.AppImage"
+            ),
+            format!(
+                "https://github.com/{foreign_repository}/releases/download/v0.1.528-beta/app.AppImage"
+            ),
         ] {
-            let metadata = metadata_with_url(url);
+            let metadata = metadata_with_url(&url);
             assert!(
                 super::validate_channel_metadata(&metadata, "0.1.528-beta").is_err(),
                 "accepted untrusted URL: {url}"
             );
         }
     }
-
 }

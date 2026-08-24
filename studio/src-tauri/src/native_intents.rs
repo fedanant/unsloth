@@ -758,9 +758,11 @@ mod tests {
             .duration_since(UNIX_EPOCH)
             .unwrap()
             .as_nanos();
-        crate::native_path_policy::scratch_root().join(format!("unsloth-native-intents-{name}-{}-{nanos}", std::process::id()))
+        crate::native_path_policy::scratch_root().join(format!(
+            "unsloth-native-intents-{name}-{}-{nanos}",
+            std::process::id()
+        ))
     }
-
 
     fn attachment_entry(path: &Path) -> (NativeIntakeState, NativePathEntry) {
         let state = new_native_intake_state();
