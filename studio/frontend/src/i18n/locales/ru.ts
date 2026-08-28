@@ -194,6 +194,7 @@ export const ru = {
       resources: "Система",
       chat: "Чат",
       connections: "Подключения",
+      network: "Прокси и Анонимность",
       apiKeys: "API",
       about: "О программе",
       data: "Данные",
@@ -223,6 +224,10 @@ export const ru = {
         chat: "Чат",
       },
       actions: {
+        quickPrompt: {
+          label: "Быстрый запрос",
+          description: "Открыть/скрыть плавающее окно быстрого запроса",
+        },
         newChat: {
           label: "Новый чат",
           description: "Начать новый чат",

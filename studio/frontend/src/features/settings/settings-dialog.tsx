@@ -67,6 +67,8 @@ const TAB_LOADERS = {
   voice: () => import("./tabs/voice-tab").then((m) => ({ default: m.VoiceTab })),
   connections: () =>
     import("./tabs/connections-tab").then((m) => ({ default: m.ConnectionsTab })),
+  network: () =>
+    import("./tabs/network-tab").then((m) => ({ default: m.NetworkTab })),
   data: () => import("./tabs/data-tab").then((m) => ({ default: m.DataTab })),
   "keyboard-shortcuts": () =>
     import("./tabs/keyboard-shortcuts-tab").then((m) => ({
@@ -190,6 +192,12 @@ const TABS: TabDef[] = [
     id: "connections",
     labelKey: "settings.tabs.connections",
     icon: CloudIcon,
+  },
+  {
+    id: "network",
+    labelKey: "settings.tabs.network",
+    icon: Globe02Icon,
+    badgeKey: "common.new",
   },
   {
     id: "agents",
@@ -354,6 +362,7 @@ export function SettingsDialog() {
     chat: null,
     voice: null,
     connections: null,
+    network: null,
     "keyboard-shortcuts": null,
     data: null,
     "api-keys": null,

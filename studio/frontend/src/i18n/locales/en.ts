@@ -193,6 +193,7 @@ export const en = {
       chat: "Chat",
       voice: "Voice",
       connections: "Connections",
+      network: "Proxy & Privacy",
       data: "Data",
       apiKeys: "API",
       agents: "Agents",
@@ -221,6 +222,10 @@ export const en = {
         chat: "Chat",
       },
       actions: {
+        quickPrompt: {
+          label: "Quick Prompt",
+          description: "Toggle floating quick prompt overlay",
+        },
         newChat: {
           label: "New chat",
           description: "Start a new chat",

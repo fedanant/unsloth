@@ -195,6 +195,7 @@ export const hi = {
       resources: "सिस्टम",
       chat: "चैट",
       connections: "कनेक्शन",
+      network: "प्रॉक्सी और गोपनीयता",
       apiKeys: "API",
       about: "परिचय",
       data: "डेटा",

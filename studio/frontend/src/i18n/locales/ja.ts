@@ -194,6 +194,7 @@ export const ja = {
       resources: "システム",
       chat: "チャット",
       connections: "接続",
+      network: "プロキシとプライバシー",
       apiKeys: "API",
       about: "情報",
       voice: "音声",

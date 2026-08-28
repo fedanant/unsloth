@@ -17,6 +17,7 @@ mod native_clipboard;
 mod native_file_dialogs;
 mod native_intents;
 mod native_path_policy;
+mod network_proxy;
 mod preflight;
 mod process;
 mod process_identity;
@@ -91,6 +92,65 @@ fn mark_in_app_relaunch(app: tauri::AppHandle) -> Result<(), String> {
 fn clear_in_app_relaunch(app: tauri::AppHandle) -> Result<(), String> {
     let dir = in_app_relaunch_config_dir(&app)?;
     take_in_app_relaunch_marker(&dir);
+    Ok(())
+}
+
+fn toggle_quick_prompt_global(app: &tauri::AppHandle) {
+    if let Some(qp_window) = app.get_webview_window("quick-prompt") {
+        if qp_window.is_visible().unwrap_or(false) {
+            let _ = qp_window.hide();
+        } else {
+            let _ = qp_window.show();
+            let _ = qp_window.unminimize();
+            let _ = qp_window.set_focus();
+            let _ = qp_window.emit("focus-prompt", ());
+        }
+    }
+}
+
+#[tauri::command]
+fn hide_quick_prompt_window(app: tauri::AppHandle) -> Result<(), String> {
+    if let Some(window) = app.get_webview_window("quick-prompt") {
+        let _ = window.hide();
+    }
+    Ok(())
+}
+
+#[tauri::command]
+fn open_chat_in_main_window(app: tauri::AppHandle, thread_id: Option<String>) -> Result<(), String> {
+    if let Some(qp_window) = app.get_webview_window("quick-prompt") {
+        let _ = qp_window.hide();
+    }
+    #[cfg(target_os = "macos")]
+    let _ = app.set_activation_policy(tauri::ActivationPolicy::Regular);
+    if let Some(main_window) = app.get_webview_window("main") {
+        let _ = main_window.show();
+        let _ = main_window.unminimize();
+        let _ = main_window.set_focus();
+        let _ = main_window.emit("navigate-to-chat", thread_id);
+    }
+    Ok(())
+}
+
+#[tauri::command]
+fn hide_main_window(app: tauri::AppHandle) -> Result<(), String> {
+    if let Some(window) = app.get_webview_window("main") {
+        let _ = window.hide();
+    }
+    Ok(())
+}
+
+#[tauri::command]
+fn set_quick_prompt_always_on_top(app: tauri::AppHandle, always_on_top: bool) -> Result<(), String> {
+    if let Some(window) = app.get_webview_window("quick-prompt") {
+        let _ = window.set_always_on_top(always_on_top);
+    }
+    Ok(())
+}
+
+#[tauri::command]
+fn show_quick_prompt_window(app: tauri::AppHandle) -> Result<(), String> {
+    toggle_quick_prompt_global(&app);
     Ok(())
 }
 
@@ -1185,6 +1245,8 @@ fn cleanup_child_processes(app: &tauri::AppHandle) {
                 .expect("ShutdownFlag must be managed");
             let _ = process::stop_backend(&backend_state, &shutdown, diagnostics_state.as_ref());
         }
+        network_proxy::daemon_manager::get_daemon_manager().stop_all();
+        network_proxy::chain_relay::get_chain_relay().stop();
     }
     *done = true;
 }
@@ -1816,6 +1878,9 @@ fn main() {
     setup_logging();
     info!("Unsloth desktop app starting");
 
+    let initial_proxy_settings = network_proxy::get_global_proxy_settings().lock().unwrap().clone();
+    network_proxy::apply_environment_proxies(&initial_proxy_settings);
+
     #[cfg(target_os = "linux")]
     if let Some(variable) = webkit_rendering_workaround {
         info!("Set {variable}=1 for WebKitGTK compatibility");
@@ -1840,6 +1905,15 @@ fn main() {
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_clipboard_manager::init())
+        .plugin(
+            tauri_plugin_global_shortcut::Builder::new()
+                .with_handler(|app, _shortcut, event| {
+                    if event.state() == tauri_plugin_global_shortcut::ShortcutState::Pressed {
+                        toggle_quick_prompt_global(app);
+                    }
+                })
+                .build(),
+        )
         .plugin(
             tauri_plugin_window_state::Builder::new()
                 .with_state_flags(StateFlags::SIZE | StateFlags::POSITION | StateFlags::MAXIMIZED)
@@ -1913,8 +1987,42 @@ fn main() {
             set_close_to_tray,
             get_launch_at_login,
             set_launch_at_login,
+            set_quick_prompt_always_on_top,
+            show_quick_prompt_window,
+            hide_quick_prompt_window,
+            open_chat_in_main_window,
+            hide_main_window,
+            network_proxy::commands::get_network_proxy_settings,
+            network_proxy::commands::save_network_proxy_settings,
+            network_proxy::commands::get_network_daemon_statuses,
+            network_proxy::commands::test_proxy_connection,
+            network_proxy::commands::check_network_component_updates,
+            network_proxy::commands::update_network_component,
         ])
         .setup(|app| {
+            // Register global shortcut for Quick Prompt
+            {
+                use tauri_plugin_global_shortcut::{GlobalShortcutExt, Shortcut};
+                #[cfg(target_os = "macos")]
+                let default_shortcut_str = "Command+Shift+Space";
+                #[cfg(not(target_os = "macos"))]
+                let default_shortcut_str = "Ctrl+Shift+Space";
+
+                if let Ok(shortcut) = default_shortcut_str.parse::<Shortcut>() {
+                    if let Err(e) = app.global_shortcut().register(shortcut) {
+                        warn!("Could not register global hotkey {default_shortcut_str}: {e}");
+                    } else {
+                        info!("Global Quick Prompt shortcut registered: {default_shortcut_str}");
+                    }
+                }
+            }
+            // Reconcile network proxy daemons and chain relay
+            let proxy_settings = network_proxy::get_global_proxy_settings().lock().unwrap().clone();
+            network_proxy::daemon_manager::get_daemon_manager().reconcile(&proxy_settings);
+            if proxy_settings.enabled && proxy_settings.routing_mode == network_proxy::RoutingMode::Chain {
+                network_proxy::chain_relay::get_chain_relay().start(proxy_settings.relay_port);
+            }
+
             // Resolve here, before any window path can ask: this consumes the relaunch marker.
             let launched_hidden = was_launched_hidden(app.handle().clone());
             #[cfg(not(target_os = "macos"))]

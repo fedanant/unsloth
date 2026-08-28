@@ -65,7 +65,7 @@ export interface RetainedUpdateFailure {
   logs: string[];
 }
 
-const UPSTREAM_RELEASE_REPOSITORY = "unslothai/unsloth";
+const UPSTREAM_RELEASE_REPOSITORY = "fedanant/unsloth";
 const configuredReleaseRepository =
   import.meta.env.VITE_UNSLOTH_DESKTOP_RELEASE_REPOSITORY?.trim();
 const releaseRepository =

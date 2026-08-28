@@ -15,6 +15,7 @@ export const SETTINGS_TABS = [
   "chat",
   "voice",
   "connections",
+  "network",
   "data",
   "api-keys",
   "agents",

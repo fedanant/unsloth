@@ -12,7 +12,8 @@ export type ShortcutId =
   | "openKeyboardShortcuts"
   | "newChat"
   | "searchChats"
-  | "toggleSidebar";
+  | "toggleSidebar"
+  | "quickPrompt";
 
 export type ShortcutGroup = "general" | "chat";
 
@@ -41,6 +42,14 @@ export interface ShortcutBinding {
 export const SHORTCUT_GROUPS: ShortcutGroup[] = ["general", "chat"];
 
 export const SHORTCUT_DEFS: ShortcutDef[] = [
+  {
+    id: "quickPrompt",
+    labelKey: "settings.keyboardShortcuts.actions.quickPrompt.label",
+    descriptionKey:
+      "settings.keyboardShortcuts.actions.quickPrompt.description",
+    group: "chat",
+    defaultBinding: "Mod+Shift+Space",
+  },
   {
     id: "newChat",
     labelKey: "settings.keyboardShortcuts.actions.newChat.label",

@@ -196,6 +196,7 @@ export const fr = {
       resources: "Système",
       chat: "Discussion",
       connections: "Connexions",
+      network: "Proxy et Confidentialité",
       apiKeys: "API",
       about: "À propos",
       data: "Données",

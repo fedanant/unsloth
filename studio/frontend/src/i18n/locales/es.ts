@@ -195,6 +195,7 @@ export const es = {
       resources: "Sistema",
       chat: "Chat",
       connections: "Conexiones",
+      network: "Proxy y Privacidad",
       apiKeys: "API",
       about: "Acerca de",
       data: "Datos",

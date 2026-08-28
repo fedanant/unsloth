@@ -63,6 +63,12 @@ export default defineConfig({
     },
   },
   build: {
+    rollupOptions: {
+      input: {
+        main: path.resolve(__dirname, "index.html"),
+        quick_prompt: path.resolve(__dirname, "quick-prompt.html"),
+      },
+    },
     commonjsOptions: {
       include: [/node_modules/, /@dagrejs\/dagre/, /@dagrejs\/graphlib/],
     },

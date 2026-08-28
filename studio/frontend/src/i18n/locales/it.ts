@@ -161,6 +161,7 @@ export const it = {
       chat: "Chat",
       voice: "Voce",
       connections: "Connessioni",
+      network: "Proxy e Privacy",
       data: "Dati",
       apiKeys: "API",
       agents: "Agenti",

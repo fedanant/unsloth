@@ -55,6 +55,14 @@ export function shouldUseCustomWindowTitlebar(): boolean {
   if (!isTauri) {
     return false;
   }
+  if (
+    typeof window !== "undefined" &&
+    (window.location.pathname.includes("quick-prompt") ||
+      window.location.search.includes("standalone=quick-prompt") ||
+      window.location.href.includes("quick-prompt"))
+  ) {
+    return false;
+  }
   const platform = getClientPlatform();
   if (!platform || platform.includes("mac")) {
     return false;

@@ -29,6 +29,11 @@ import {
   useSettingsDialogStore,
   useShortcut,
 } from "@/features/settings";
+import {
+  QuickPromptModal,
+  StandaloneQuickPrompt,
+  useQuickPromptStore,
+} from "@/features/quick-prompt";
 import { useTrainingUnloadGuard } from "@/features/training";
 import { TransformersUpgradeDialog } from "@/features/transformers-upgrade";
 import { useSidebarPin } from "@/hooks/use-sidebar-pin";
@@ -343,6 +348,11 @@ function RootLayout() {
       useSettingsDialogStore.getState().openDialog("keyboard-shortcuts"),
     { enabled: !isAuthFlowRoute },
   );
+  useShortcut(
+    "quickPrompt",
+    () => useQuickPromptStore.getState().toggle(),
+    { enabled: !isAuthFlowRoute },
+  );
   useShortcut("newChat", () => {
     clearNewChatDraft(); // fresh chat starts empty, no bleed from the last one
     const chatRuntime = useChatRuntimeStore.getState();
@@ -369,11 +379,63 @@ function RootLayout() {
     chatRuntime.setIncognito(false);
   }, [isChatRoute]);
 
+  const isStandaloneOverlay =
+    typeof window !== "undefined" &&
+    (window.location.search.includes("standalone=quick-prompt") ||
+      window.location.hash.includes("quick-prompt"));
+
+  // If running inside the standalone quick-prompt spotlight window
+  useEffect(() => {
+    if (isStandaloneOverlay) {
+      document.documentElement.classList.add("bg-transparent");
+      document.body.classList.add("bg-transparent");
+    }
+  }, [isStandaloneOverlay]);
+
+  // Main window listens for "navigate-to-chat" requests from the standalone overlay
+  useEffect(() => {
+    let unlisten: (() => void) | undefined;
+    if (
+      !isStandaloneOverlay &&
+      typeof window !== "undefined" &&
+      "__TAURI_INTERNALS__" in window
+    ) {
+      void import("@tauri-apps/api/event").then(({ listen }) => {
+        listen<string | null>("navigate-to-chat", (event) => {
+          const threadId = event.payload;
+          if (threadId) {
+            useChatRuntimeStore.getState().setActiveThreadId(threadId);
+            void navigate({
+              to: "/chat",
+              search: { thread: threadId },
+            });
+          } else {
+            void navigate({ to: "/chat" });
+          }
+        }).then((fn) => {
+          unlisten = fn;
+        });
+      }).catch(() => null);
+    }
+    return () => {
+      if (unlisten) unlisten();
+    };
+  }, [isStandaloneOverlay, navigate]);
+
+  if (isStandaloneOverlay) {
+    return (
+      <AppProvider>
+        <StandaloneQuickPrompt />
+      </AppProvider>
+    );
+  }
+
   const content = (
     <>
       <PersonalizationSyncMount />
       {!isAuthFlowRoute && <ChatSettingsHydrationMount />}
       {!isAuthFlowRoute && <SettingsDialog />}
+      {!isAuthFlowRoute && <QuickPromptModal />}
       {/* Opens itself when API traffic arrives; hides on the full monitor page. */}
       {!isAuthFlowRoute && <ApiMonitorOverlay />}
       <HfTokenWarningDialog />

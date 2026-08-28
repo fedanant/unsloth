@@ -192,6 +192,7 @@ export const ko = {
       resources: "시스템",
       chat: "채팅",
       connections: "연결",
+      network: "프록시 및 개인정보 보호",
       apiKeys: "API",
       about: "정보",
       data: "데이터",

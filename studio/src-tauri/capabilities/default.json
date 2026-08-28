@@ -1,7 +1,7 @@
 {
   "identifier": "default",
   "description": "Default capabilities for Unsloth",
-  "windows": ["main"],
+  "windows": ["*"],
   "permissions": [
     "core:default",
     "core:window:default",
@@ -35,6 +35,9 @@
     "updater:default",
     "clipboard-manager:allow-write-text",
     "clipboard-manager:allow-read-image",
+    "global-shortcut:allow-is-registered",
+    "global-shortcut:allow-register",
+    "global-shortcut:allow-unregister",
     "window-state:default"
   ]
 }

@@ -196,6 +196,7 @@ export const de = {
       resources: "System",
       chat: "Chat",
       connections: "Verbindungen",
+      network: "Proxy & Privatsphäre",
       apiKeys: "API",
       about: "Info",
       data: "Daten",

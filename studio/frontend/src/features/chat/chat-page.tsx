@@ -106,6 +106,8 @@ import {
 } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useNavigate } from "@tanstack/react-router";
+import { Sparkles } from "lucide-react";
+import { useQuickPromptStore } from "@/features/quick-prompt";
 import { Tooltip as TooltipPrimitive } from "radix-ui";
 import {
   type CSSProperties,
@@ -3680,6 +3682,32 @@ export function ChatPage({
                   className="tooltip-compact"
                 >
                   {incognitoLabel}
+                </TooltipContent>
+              </Tooltip>
+            )}
+            {view.mode === "single" && (
+              <Tooltip>
+                <TooltipPrimitive.Trigger asChild={true}>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      useQuickPromptStore.getState().open({
+                        threadId: search.thread ?? undefined,
+                        model: inferenceParams.checkpoint ?? undefined,
+                      });
+                    }}
+                    className="flex size-[30px] cursor-pointer items-center justify-center rounded-[10px] text-nav-fg transition-colors hover:bg-nav-surface-hover hover:text-black focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring dark:hover:text-white"
+                    aria-label="Quick Prompt Overlay (Ctrl+Shift+Space)"
+                  >
+                    <Sparkles className="size-4 stroke-[1.75]" />
+                  </button>
+                </TooltipPrimitive.Trigger>
+                <TooltipContent
+                  side="bottom"
+                  sideOffset={6}
+                  className="tooltip-compact"
+                >
+                  Quick Overlay (Ctrl+Shift+Space)
                 </TooltipContent>
               </Tooltip>
             )}

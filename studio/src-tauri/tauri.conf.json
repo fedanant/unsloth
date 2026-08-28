@@ -31,6 +31,21 @@
         "titleBarStyle": "Overlay",
         "trafficLightPosition": { "x": 14, "y": 26 },
         "hiddenTitle": true
+      },
+      {
+        "label": "quick-prompt",
+        "title": "Unsloth Quick Prompt",
+        "url": "quick-prompt.html",
+        "width": 760,
+        "height": 700,
+        "center": true,
+        "visible": false,
+        "resizable": true,
+        "decorations": false,
+        "transparent": true,
+        "alwaysOnTop": true,
+        "skipTaskbar": true,
+        "shadow": false
       }
     ]
   },

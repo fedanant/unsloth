@@ -190,6 +190,7 @@ export const zhCN = {
       resources: "系统",
       chat: "聊天",
       connections: "连接",
+      network: "代理与隐私",
       apiKeys: "API",
       about: "关于",
       voice: "语音",

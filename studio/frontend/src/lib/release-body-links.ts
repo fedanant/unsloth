@@ -28,8 +28,8 @@ import {
   quoteState,
 } from "@/lib/markdown-list-columns";
 
-const LINK_BASE = "https://github.com/unslothai/unsloth/blob/main/";
-const IMAGE_BASE = "https://raw.githubusercontent.com/unslothai/unsloth/main/";
+const LINK_BASE = "https://github.com/fedanant/unsloth/blob/main/";
+const IMAGE_BASE = "https://raw.githubusercontent.com/fedanant/unsloth/main/";
 
 // Inline `](dest)` plus the `[label]: dest` reference form. The destination is
 // either <bracketed> or runs to whitespace or the closing paren.

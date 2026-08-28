@@ -194,6 +194,7 @@ export const ptBR = {
       resources: "Sistema",
       chat: "Chat",
       connections: "Conexões",
+      network: "Proxy e Privacidade",
       apiKeys: "API",
       about: "Sobre",
       voice: "Voz",

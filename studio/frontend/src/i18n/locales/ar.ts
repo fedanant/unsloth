@@ -192,6 +192,7 @@ export const ar = {
       resources: "النظام",
       chat: "المحادثة",
       connections: "الاتصالات",
+      network: "الوكيل والخصوصية",
       apiKeys: "API",
       about: "حول",
       data: "البيانات",
